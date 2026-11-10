@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Ясный Берег</string>
+    <string name="nav_home">Главная</string>
+    <string name="nav_motivation">Мотивация</string>
+    <string name="nav_methods">Методы</string>
+    <string name="nav_diary">Дневник</string>
+    <string name="nav_health">Здоровье</string>
+    <string name="sos_button_label">СТОП-СРЫВ: ЭКСТРЕННАЯ ПОМОЩЬ</string>
+    <string name="large_font_toggle">Крупный шрифт</string>
+    <string name="encryption_badge">AES-256 Защищено</string>
+    <string name="offline_badge">Оффлайн-режим активен</string>
+    <string name="export_doctor_report">Экспорт отчета для врача</string>
+    <string name="notification_channel_daily">Ежедневная поддержка и мотивация</string>
+    <string name="notification_channel_critical">Экстренные оповещения о состоянии</string>
+</resources>
