@@ -708,6 +708,7 @@ fun HomeAndTrackerScreen(
 
         // Achievements & Virtual Rewards System ("Система достижений и наград")
         item {
+            var showAllAchievements by remember { mutableStateOf(false) }
             val achievements = remember(
                 profile.soberDays,
                 profile.completedMeditationsCount,
@@ -723,6 +724,7 @@ fun HomeAndTrackerScreen(
                 )
             }
             val unlockedCount = achievements.count { it.isUnlocked }
+            val visibleAchievements = if (showAllAchievements) achievements else achievements.take(4)
 
             ElevatedCard(
                 modifier = Modifier
@@ -753,12 +755,12 @@ fun HomeAndTrackerScreen(
                             onClick = { onNavigateToTab(AppTab.METHODS) },
                             modifier = Modifier.testTag("open_education_from_achievements")
                         ) {
-                            Text("К практикам и статьям")
+                            Text("К тренажерам")
                         }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
-                    achievements.forEach { ach ->
+                    visibleAchievements.forEach { ach ->
                         val bg = if (ach.isUnlocked) MaterialTheme.colorScheme.primaryContainer
                         else MaterialTheme.colorScheme.surfaceVariant
                         val contentColor = if (ach.isUnlocked) MaterialTheme.colorScheme.onPrimaryContainer
@@ -835,12 +837,33 @@ fun HomeAndTrackerScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { showAllAchievements = !showAllAchievements },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .testTag("toggle_all_achievements_button")
+                    ) {
+                        Text(
+                            if (showAllAchievements) "Свернуть список наград"
+                            else "Показать все награды (${achievements.size})"
+                        )
+                    }
                 }
             }
         }
 
         // Organ & Body Recovery Milestones
         item {
+            var showAllMilestones by remember { mutableStateOf(false) }
+            val visibleMilestones = if (showAllMilestones) {
+                MethodsAndScienceCatalog.organMilestones
+            } else {
+                MethodsAndScienceCatalog.organMilestones.take(4)
+            }
+
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.elevatedCardColors(
@@ -859,7 +882,7 @@ fun HomeAndTrackerScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    MethodsAndScienceCatalog.organMilestones.forEach { milestone ->
+                    visibleMilestones.forEach { milestone ->
                         val progress = (profile.totalSoberHours.toFloat() / milestone.requiredHours.toFloat())
                             .coerceIn(0f, 1f)
                         val percent = (progress * 100).toInt()
@@ -897,6 +920,20 @@ fun HomeAndTrackerScreen(
                                     .clip(RoundedCornerShape(4.dp))
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { showAllMilestones = !showAllMilestones },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .testTag("toggle_all_organ_milestones_button")
+                    ) {
+                        Text(
+                            if (showAllMilestones) "Свернуть этапы регенерации"
+                            else "Показать все этапы до 1 года (${MethodsAndScienceCatalog.organMilestones.size})"
+                        )
                     }
                 }
             }

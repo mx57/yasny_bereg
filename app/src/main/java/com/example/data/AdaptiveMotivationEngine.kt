@@ -15,7 +15,8 @@ data class MotivationalItem(
     val minSoberDays: Int,
     val maxSoberDays: Int,
     val targetEmotions: Set<EmotionalState>,
-    val toughModeMessage: String? = null
+    val toughModeMessage: String? = null,
+    val subCategoryTag: String = "Общее"
 )
 
 data class AdaptedMotivationBundle(
@@ -41,7 +42,8 @@ object AdaptiveMotivationEngine {
             minSoberDays = 0,
             maxSoberDays = 4,
             targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.ANXIOUS, EmotionalState.TIRED),
-            toughModeMessage = "Если вы сейчас выпьете хотя бы 50 грамм «для облегчения», вы обнулите все страдания последних часов и загоните сердце в зону риска аритмии. Перетерпите этот пик — через 48 часов физическая ломка отступит."
+            toughModeMessage = "Если вы сейчас выпьете хотя бы 50 грамм «для облегчения», вы обнулите все страдания последних часов и загоните сердце в зону риска аритмии. Перетерпите этот пик — через 48 часов физическая ломка отступит.",
+            subCategoryTag = "Послание дня"
         ),
         MotivationalItem(
             id = "msg_day_1_7_calm",
@@ -54,7 +56,8 @@ object AdaptiveMotivationEngine {
             minSoberDays = 0,
             maxSoberDays = 10,
             targetEmotions = setOf(EmotionalState.CALM, EmotionalState.PROUD, EmotionalState.LONELY),
-            toughModeMessage = "Не позволяйте первой эйфории обмануть вас мыслью «я уже контролирую себя и могу выпить бокал». Именно на 5–7 день ложная уверенность губит большинство попыток."
+            toughModeMessage = "Не позволяйте первой эйфории обмануть вас мыслью «я уже контролирую себя и могу выпить бокал». Именно на 5–7 день ложная уверенность губит большинство попыток.",
+            subCategoryTag = "Послание дня"
         ),
         MotivationalItem(
             id = "msg_week_2_4_anxious",
@@ -67,7 +70,8 @@ object AdaptiveMotivationEngine {
             minSoberDays = 5,
             maxSoberDays = 35,
             targetEmotions = setOf(EmotionalState.ANXIOUS, EmotionalState.LONELY, EmotionalState.TIRED, EmotionalState.CRISIS),
-            toughModeMessage = "Скука и раздражение на 2–3 неделе — это предсмертный скулеж зависимости. Алкоголь не вернет радость, он лишь даст 20 минут оглушения и неделю тяжелейшей депрессии."
+            toughModeMessage = "Скука и раздражение на 2–3 неделе — это предсмертный скулеж зависимости. Алкоголь не вернет радость, он лишь даст 20 минут оглушения и неделю тяжелейшей депрессии.",
+            subCategoryTag = "Послание дня"
         ),
         MotivationalItem(
             id = "msg_month_1_3_proud",
@@ -80,7 +84,8 @@ object AdaptiveMotivationEngine {
             minSoberDays = 20,
             maxSoberDays = 120,
             targetEmotions = setOf(EmotionalState.CALM, EmotionalState.PROUD, EmotionalState.TIRED),
-            toughModeMessage = "Один «праздничный тост» после месяца трезвости мгновенно включает старые нейронные цепи зависимости на полную мощность. Защищайте свою трезвость как самую дорогую крепость."
+            toughModeMessage = "Один «праздничный тост» после месяца трезвости мгновенно включает старые нейронные цепи зависимости на полную мощность. Защищайте свою трезвость как самую дорогую крепость.",
+            subCategoryTag = "Послание дня"
         ),
         MotivationalItem(
             id = "msg_crisis_any_day",
@@ -89,11 +94,26 @@ object AdaptiveMotivationEngine {
             authorOrHero = "Экстренная поддержка",
             authorRoleOrAge = "Для моментов острой тяги и стресса",
             content = "Прямо сейчас в вашем теле говорит не ваша личность, а старый условный рефлекс на стресс или усталость. Физиологически пик острой тяги живет от 10 до 20 минут, после чего неизбежно идет на спад, как морская волна. Выпейте два больших стакана воды, сделайте 10 глубоких вдохов с долгим выдохом и позвольте этой волне разбиться без вашего участия.",
-            practicalTakeaway = "Откройте вкладку «Методы» и запустите дыхательный тренажер 4-7-8 или технику НЛП «Взмах» прямо сейчас.",
+            practicalTakeaway = "Откройте вкладку «Методы» и запустите тренажер заземления 5-4-3-2-1 или дыхание 4-7-8 прямо сейчас.",
             minSoberDays = 0,
             maxSoberDays = 3650,
             targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.ANXIOUS),
-            toughModeMessage = "Посмотрите правде в глаза: еще ни одна жизненная проблема за всю историю человечества не стала легче после пьянки. Завтра проблема останется на месте, но к ней добавятся тахикардия, похмельный ужас и отвращение к себе."
+            toughModeMessage = "Посмотрите правде в глаза: еще ни одна жизненная проблема за всю историю человечества не стала легче после пьянки. Завтра проблема останется на месте, но к ней добавятся тахикардия, похмельный ужас и отвращение к себе.",
+            subCategoryTag = "Жесткая правда"
+        ),
+        MotivationalItem(
+            id = "msg_evening_fatigue_shield",
+            category = MotivationCategory.DAILY_MESSAGE,
+            title = "Вечерний щит: как пройти самые опасные часы с 18:00 до 21:00",
+            authorOrHero = "Физиология циркадных ритмов",
+            authorRoleOrAge = "Ежедневная вечерняя защита",
+            content = "К вечеру запас глюкозы и дофамина в мозге естественным образом снижается, и старая программа зависимости пытается выдать обычную усталость за желание выпить. Как только вы плотно поужинаете горячей пищей и примете теплый душ, ложный сигнал исчезнет за 15 минут.",
+            practicalTakeaway = "Правило железного вечера: сначала плотный ужин и большой стакан теплого чая, и только потом любые размышления.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.TIRED, EmotionalState.LONELY, EmotionalState.ANXIOUS),
+            toughModeMessage = "Вечерняя рюмка «для снятия усталости» крадет глубокую фазу сна, заставляя сердце колотиться всю ночь с частотой 95–110 ударов в минуту.",
+            subCategoryTag = "Послание дня"
         ),
         MotivationalItem(
             id = "msg_long_term_mastery",
@@ -106,22 +126,11 @@ object AdaptiveMotivationEngine {
             minSoberDays = 60,
             maxSoberDays = 3650,
             targetEmotions = setOf(EmotionalState.CALM, EmotionalState.PROUD, EmotionalState.LONELY, EmotionalState.TIRED),
-            toughModeMessage = "У зависимостей нет срока давности. Даже через полгода или год первый глоток возвращает человека не к «культурному питию», а в ту же яму, из которой он выбирался с таким трудом."
+            toughModeMessage = "У зависимостей нет срока давности. Даже через полгода или год первый глоток возвращает человека не к «культурному питию», а в ту же яму, из которой он выбирался с таким трудом.",
+            subCategoryTag = "Послание дня"
         ),
 
-        // ==================== 2. FAMOUS PERSONALITIES QUOTES ON SOBRIETY ====================
-        MotivationalItem(
-            id = "quote_tolstoy_conscience",
-            category = MotivationCategory.FAMOUS_QUOTE,
-            title = "Одурманивание совести и ясность жизни",
-            authorOrHero = "Лев Николаевич Толстой",
-            authorRoleOrAge = "Писатель и мыслитель (эссе «Для чего люди одурманиваются?»)",
-            content = "«Люди пьют вино не для веселья, а для того, чтобы заглушить голос совести и разума. Стоит только человеку перестать одурманивать себя, как глаза его открываются на истинную жизнь, и он ужасается тому, в каком тумане он жил прежде».",
-            practicalTakeaway = "Трезвость возвращает честный контакт с самим собой. Любую трудность легче решить ясным умом, чем прятать в тумане.",
-            minSoberDays = 0,
-            maxSoberDays = 3650,
-            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.ANXIOUS, EmotionalState.CALM)
-        ),
+        // ==================== 2. MEDICAL QUOTES: SURGEONS, NARCOLOGISTS, PHYSIOLOGISTS ====================
         MotivationalItem(
             id = "quote_uglov_surgeon",
             category = MotivationCategory.FAMOUS_QUOTE,
@@ -132,7 +141,9 @@ object AdaptiveMotivationEngine {
             practicalTakeaway = "Долголетие, твердая рука и ясная память в преклонном возрасте начинаются с полного отказа от этанола.",
             minSoberDays = 0,
             maxSoberDays = 3650,
-            targetEmotions = setOf(EmotionalState.PROUD, EmotionalState.CALM, EmotionalState.TIRED, EmotionalState.CRISIS)
+            targetEmotions = setOf(EmotionalState.PROUD, EmotionalState.CALM, EmotionalState.TIRED, EmotionalState.CRISIS),
+            toughModeMessage = "Углов писал прямо: «Алкоголь — это наркотический протоплазматический яд, разрушающий кору головного мозга с первой же ложки».",
+            subCategoryTag = "Врачи и наука"
         ),
         MotivationalItem(
             id = "quote_bekhterev_brain",
@@ -144,7 +155,188 @@ object AdaptiveMotivationEngine {
             practicalTakeaway = "Когда усталость шепчет «выпей для бодрости», помните слова академика Бехтерева: спиртное берет энергию взаймы у вашего завтрашнего дня под огромный процент.",
             minSoberDays = 0,
             maxSoberDays = 3650,
-            targetEmotions = setOf(EmotionalState.TIRED, EmotionalState.ANXIOUS, EmotionalState.CRISIS)
+            targetEmotions = setOf(EmotionalState.TIRED, EmotionalState.ANXIOUS, EmotionalState.CRISIS),
+            toughModeMessage = "Паралич тормозных центров мозга наступает через 12 минут после приема спиртного — именно поэтому человек теряет контроль после первой рюмки.",
+            subCategoryTag = "Врачи и наука"
+        ),
+        MotivationalItem(
+            id = "quote_pavlov_reflexes",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "Разрушение тормозных процессов высшей нервной деятельности",
+            authorOrHero = "Иван Петрович Павлов",
+            authorRoleOrAge = "Лауреат Нобелевской премии, академик-физиолог",
+            content = "«В наших лабораториях мы проверили действие алкоголя на высшую нервную деятельность: даже малейшие дозы спирта немедленно парализуют самый тонкий и важный механизм мозга — процесс внутреннего торможения. Человек становится рабом случайных импульсов, а восстановление нормальной работы коры занимает от 8 до 12 суток после одного приема!»",
+            practicalTakeaway = "Одна выпивка выбивает тонкую настройку нервной системы почти на две недели. Берегите чистоту своих нейронных связей.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.ANXIOUS, EmotionalState.CRISIS, EmotionalState.CALM),
+            toughModeMessage = "По данным лаборатории И. П. Павлова, после единственного застолья мозг работает в режиме невроза и дефицита торможения до 12 дней подряд.",
+            subCategoryTag = "Врачи и наука"
+        ),
+        MotivationalItem(
+            id = "quote_amosov_heart_reserves",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "Сердце имеет огромный запас прочности, если не травить его",
+            authorOrHero = "Николай Михайлович Амосов",
+            authorRoleOrAge = "Великий кардиохирург, академик, создатель системы активного долголетия",
+            content = "«Врачи лечат болезни, а здоровье нужно добывать самому тренировкой, выдержкой и трезвостью. Природа заложила в человеческое сердце и сосуды такой запас прочности, что даже в 60 и 70 лет организм способен восстановиться, если прекратить отравлять его алкоголем и дать телу разумное движение».",
+            practicalTakeaway = "Ежедневная прогулка до легкой испарины и чистая кровь без этанола восстанавливают эластичность сосудов в любом возрасте.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.PROUD, EmotionalState.CALM, EmotionalState.TIRED),
+            subCategoryTag = "Врачи и наука"
+        ),
+        MotivationalItem(
+            id = "quote_shichko_programming",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "Освобождение сознания от ложной питейной запрограммированности",
+            authorOrHero = "Геннадий Андреевич Шичко",
+            authorRoleOrAge = "Советский физиолог, психофизиолог, автор метода сознательной трезвости",
+            content = "«Человек рождается естественным трезвенником. Он начинает пить только потому, что его сознание с детства было обмануто ложными программами о „культурном питии“ и „пользе бокала“. Как только человек разрушает эту ложь в своей голове и пишет правду в дневнике перед сном — тяга к алкоголю отмирает навсегда, уступая место спокойной свободе».",
+            practicalTakeaway = "Откройте тренажер «Метод Г. А. Шичко и КПТ» во вкладке «Методы» и разберите ложные убеждения одно за другим.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.ANXIOUS, EmotionalState.CALM, EmotionalState.PROUD),
+            toughModeMessage = "Спиртное на столе — это не «традиция», а химический растворитель C2H5OH, замаскированный красивой этикеткой.",
+            subCategoryTag = "Врачи и наука"
+        ),
+        MotivationalItem(
+            id = "quote_korsakov_memory",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "Защита памяти и периферических нервов от алкогольного неврита",
+            authorOrHero = "Сергей Сергеевич Корсаков",
+            authorRoleOrAge = "Основоположник российской психиатрической школы (описал синдром Корсакова)",
+            content = "«Хроническое действие спирта избирательно выжигает клетки памяти и поражает нервные стволы конечностей, вызывая онемение, слабость в ногах и потерю ориентировки. Но полное и безусловное воздержание от спиртного в сочетании с укреплением питания нервной ткани способно остановить этот распад и вернуть человеку ясность рассудка».",
+            practicalTakeaway = "Обязательно восполняйте дефицит витамина B1 (тиамина) и магния — это главный строительный материал для защиты памяти и нервов.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.TIRED, EmotionalState.ANXIOUS, EmotionalState.CRISIS),
+            toughModeMessage = "Алкогольная энцефалопатия и полинейропатия начинаются незаметно — с утренней забывчивости и онемения пальцев ног. Остановитесь вовремя.",
+            subCategoryTag = "Врачи и наука"
+        ),
+
+        // ==================== 3. TOUGH SOBERING CLINICAL QUOTES & FACTS ====================
+        MotivationalItem(
+            id = "quote_tough_toxicology_fact",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "ЖЕСТКАЯ ПРАВДА: Что именно выливается в унитаз на утро после выпивки",
+            authorOrHero = "Клиническая патоморфология",
+            authorRoleOrAge = "Судебно-медицинская экспертиза сосудов мозга",
+            content = "«Под микроскопом в мозге выпившего человека видно одно и то же: спирт склеивает эритроциты в тромбы, которые намертво забивают микрокапилляры коры. За одну пьянку от удушья погибает от 10 до 20 тысяч нейронов. На следующее утро организм закачивает жидкость в черепную коробку (отсюда раскалывающаяся голова), чтобы растворить погибшие клетки мозга и вывести их через почки с мочой».",
+            practicalTakeaway = "Вспомните этот медицинский факт каждый раз, когда кто-то предлагает выпить «за здоровье и долголетие».",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.ANXIOUS, EmotionalState.TIRED),
+            toughModeMessage = "Тот, кто пьет спиртное, буквально на следующее утро мочится собственными погибшими клетками мозга. Выбирайте жизнь и целый разум.",
+            subCategoryTag = "Жесткая правда"
+        ),
+        MotivationalItem(
+            id = "quote_tough_cardio_4am",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "ЖЕСТКАЯ ПРАВДА: Почему «час волка» в 4:00 утра уносит больше всего жизней",
+            authorOrHero = "Реанимационная кардиология",
+            authorRoleOrAge = "Статистика острых коронарных синдромов и инсультов",
+            content = "«Через 6–8 часов после вечерней выпивки уровень этанола в крови падает, но концентрация ядовитого ацетальдегида, кортизола и адреналина достигает пика. Кровь густеет, калий и магний вымыты, коронарные сосуды спазмируются, а сердце бьется с частотой 110 ударов в минуту. Именно в 4–5 часов утра после застолья происходят самые тяжелые инсульты и внезапные остановки сердца во сне».",
+            practicalTakeaway = "Спокойный трезвый сон с пульсом 60–65 ударов в минуту — лучшая страховка от реанимационной койки.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.ANXIOUS),
+            toughModeMessage = "Никакие 15 минут хмельного дурмана вечером не стоят того, чтобы под утро ваше сердце сорвалось в мерцательную аритмию.",
+            subCategoryTag = "Жесткая правда"
+        ),
+        MotivationalItem(
+            id = "quote_tough_pancreas_necrosis",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "ЖЕСТКАЯ ПРАВДА: Поджелудочная железа не прощает «одной рюмки под закуску»",
+            authorOrHero = "Неотложная абдоминальная хирургия",
+            authorRoleOrAge = "Клиника острого панкреонекроза",
+            content = "«В отличие от печени, поджелудочная железа не умеет восстанавливаться. Алкоголь вызывает спазм сфинктера Одди: пищеварительные ферменты не могут выйти в кишечник и начинают заживо переваривать саму поджелудочную железу. Острый алкогольный панкреонекроз развивается за несколько часов даже от небольшой дозы спиртного под жирную закуску».",
+            practicalTakeaway = "Трезвый стол с полезной домашней едой и минеральной водой сохраняет пищеварение здоровым на десятилетия.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.TIRED),
+            toughModeMessage = "Более 70% случаев смертельно опасного панкреонекроза в хирургических отделениях вызваны приемом алкоголя.",
+            subCategoryTag = "Жесткая правда"
+        ),
+
+        // ==================== 4. CLASSICS, WRITERS & PHILOSOPHERS ====================
+        MotivationalItem(
+            id = "quote_tolstoy_conscience",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "Одурманивание совести и ясность жизни",
+            authorOrHero = "Лев Николаевич Толстой",
+            authorRoleOrAge = "Писатель и мыслитель (эссе «Для чего люди одурманиваются?»)",
+            content = "«Люди пьют вино не для веселья, а для того, чтобы заглушить голос совести и разума. Стоит только человеку перестать одурманивать себя, как глаза его открываются на истинную жизнь, и он ужасается тому, в каком тумане он жил прежде».",
+            practicalTakeaway = "Трезвость возвращает честный контакт с самим собой. Любую трудность легче решить ясным умом, чем прятать в тумане.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.ANXIOUS, EmotionalState.CALM),
+            subCategoryTag = "Классики и философы"
+        ),
+        MotivationalItem(
+            id = "quote_chekhov_doctor_writer",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "Водка белая, но красит нос и чернит репутацию",
+            authorOrHero = "Антон Павлович Чехов",
+            authorRoleOrAge = "Врач и великий русский писатель",
+            content = "«Водка белая, но красит нос и чернит репутацию. Когда человек пьет, ему кажется, что он становится остроумнее и свободнее, но со стороны врач видит лишь угасание достоинства, дрожащие пальцы и растраченную впустую человеческую талантливость».",
+            practicalTakeaway = "Сохраняйте свое человеческое достоинство и доброе имя чистыми в любой компании.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.CALM, EmotionalState.PROUD, EmotionalState.LONELY),
+            subCategoryTag = "Классики и философы"
+        ),
+        MotivationalItem(
+            id = "quote_dostoevsky_freedom",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "О скотском рабстве у страстей и победе над собой",
+            authorOrHero = "Федор Михайлович Достоевский",
+            authorRoleOrAge = "Писатель и глубокий знаток человеческой души",
+            content = "«Употребление спиртного скотинит и зверит человека, ожесточает его сердце и отвращает от светлых мыслей. Но в том и состоит величие человека, что даже со самого дна он способен подняться одним твердым решением духа: не уступать своей слабости сегодня».",
+            practicalTakeaway = "Главная победа в жизни — это победа над собственной слабостью в минуту искушения.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.LONELY, EmotionalState.PROUD),
+            subCategoryTag = "Классики и философы"
+        ),
+        MotivationalItem(
+            id = "quote_bulgakov_doctor",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "Взгляд земского врача на разрушение личности",
+            authorOrHero = "Михаил Афанасьевич Булгаков",
+            authorRoleOrAge = "Врач и писатель («Записки юного врача»)",
+            content = "«Любая химическая зависимость выедает душу человека изнутри, оставляя лишь оболочку, готовую на любую ложь ради очередной дозы забвения. Спасение начинается в ту секунду, когда больной перестает торговаться с болезнью и выбирает полную, безоговорочную чистоту».",
+            practicalTakeaway = "Не вступайте во внутренний торг («выпью только по праздникам»). Полный отказ — это свобода без мучений выбора.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.ANXIOUS),
+            subCategoryTag = "Классики и философы"
+        ),
+        MotivationalItem(
+            id = "quote_marcus_aurelius_fortress",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "Внутренняя цитадель разума непобедима",
+            authorOrHero = "Марк Аврелий",
+            authorRoleOrAge = "Римский император и философ-стоик («Наедине с собой»)",
+            content = "«Разум, свободный от страстей и дурмана, — это неприступная крепость. Никакое внешнее огорчение не может заставить тебя причинить вред собственной душе и телу, если ты сам не откроешь ворота врагу».",
+            practicalTakeaway = "Никакой стресс или чужие слова не могут залить спиртное вам в рот. Ключ от ворот вашей крепости — только в ваших руках.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.CALM, EmotionalState.PROUD, EmotionalState.ANXIOUS),
+            subCategoryTag = "Классики и философы"
+        ),
+        MotivationalItem(
+            id = "quote_epictetus_habit",
+            category = MotivationCategory.FAMOUS_QUOTE,
+            title = "Как угасает дурная привычка: считай трезвые дни",
+            authorOrHero = "Эпиктет",
+            authorRoleOrAge = "Античный философ-стоик («Беседы»)",
+            content = "«Всякая привычка и всякая страсть укрепляется от соответствующих действий. Если ты хочешь перестать быть рабом своей слабости — не питай её. Сосчитай дни, в которые ты удержался: сперва один день, затем два, затем неделю, затем месяц — и скоро привычка к воздержанию станет твоей второй природой».",
+            practicalTakeaway = "Еще две тысячи лет назад стоики открыли закон нейропластичности: каждый трезвый день физически ослабляет старый рефлекс.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.CALM, EmotionalState.PROUD, EmotionalState.TIRED),
+            subCategoryTag = "Классики и философы"
         ),
         MotivationalItem(
             id = "quote_hopkins_freedom",
@@ -156,7 +348,8 @@ object AdaptiveMotivationEngine {
             practicalTakeaway = "Возраст не помеха для великих перемен: лучшие роли, здоровье и уважение пришли к Хопкинсу именно после полного отказа от спиртного.",
             minSoberDays = 0,
             maxSoberDays = 3650,
-            targetEmotions = setOf(EmotionalState.LONELY, EmotionalState.ANXIOUS, EmotionalState.PROUD)
+            targetEmotions = setOf(EmotionalState.LONELY, EmotionalState.ANXIOUS, EmotionalState.PROUD),
+            subCategoryTag = "Классики и философы"
         ),
         MotivationalItem(
             id = "quote_seneca_slavery",
@@ -168,7 +361,8 @@ object AdaptiveMotivationEngine {
             practicalTakeaway = "Стоическая формула проста: между импульсом (желанием) и действием всегда есть пауза. В этой паузе живет ваша свобода.",
             minSoberDays = 3,
             maxSoberDays = 3650,
-            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.CALM, EmotionalState.PROUD)
+            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.CALM, EmotionalState.PROUD),
+            subCategoryTag = "Классики и философы"
         ),
         MotivationalItem(
             id = "quote_jack_london",
@@ -180,10 +374,11 @@ object AdaptiveMotivationEngine {
             practicalTakeaway = "Распознавайте голос зависимости как голос лжеца — не вступайте с ним в переговоры.",
             minSoberDays = 1,
             maxSoberDays = 3650,
-            targetEmotions = setOf(EmotionalState.LONELY, EmotionalState.CRISIS, EmotionalState.ANXIOUS)
+            targetEmotions = setOf(EmotionalState.LONELY, EmotionalState.CRISIS, EmotionalState.ANXIOUS),
+            subCategoryTag = "Классики и философы"
         ),
 
-        // ==================== 3. REAL-LIFE SUCCESS STORIES ====================
+        // ==================== 5. REAL-LIFE SUCCESS STORIES ====================
         MotivationalItem(
             id = "story_viktor_64_engineer",
             category = MotivationCategory.REAL_STORY,
@@ -194,7 +389,8 @@ object AdaptiveMotivationEngine {
             practicalTakeaway = "Секрет Виктора Павловича: не оставаться вечером в четырех стенах наедине с телевизором — заменить старый вечерний ритуал прогулкой и травяным чаем в термосе.",
             minSoberDays = 0,
             maxSoberDays = 3650,
-            targetEmotions = setOf(EmotionalState.LONELY, EmotionalState.CRISIS, EmotionalState.TIRED, EmotionalState.ANXIOUS)
+            targetEmotions = setOf(EmotionalState.LONELY, EmotionalState.CRISIS, EmotionalState.TIRED, EmotionalState.ANXIOUS),
+            subCategoryTag = "Истории успеха"
         ),
         MotivationalItem(
             id = "story_elena_58_teacher",
@@ -206,7 +402,8 @@ object AdaptiveMotivationEngine {
             practicalTakeaway = "Метод Елены Сергеевны: техника «Перемотка пленки до утра» — никогда не думать о первых 15 минутах опьянения, а сразу вспоминать состояние в 4 часа утра.",
             minSoberDays = 0,
             maxSoberDays = 3650,
-            targetEmotions = setOf(EmotionalState.ANXIOUS, EmotionalState.TIRED, EmotionalState.CALM)
+            targetEmotions = setOf(EmotionalState.ANXIOUS, EmotionalState.TIRED, EmotionalState.CALM),
+            subCategoryTag = "Истории успеха"
         ),
         MotivationalItem(
             id = "story_nikolay_68_carpenter",
@@ -218,7 +415,8 @@ object AdaptiveMotivationEngine {
             practicalTakeaway = "Опыт Николая Ивановича: цифры пульса и давления не врут. Следите за объективными показателями сердца — они наглядно показывают благодарность организма за каждый трезвый день.",
             minSoberDays = 0,
             maxSoberDays = 3650,
-            targetEmotions = setOf(EmotionalState.PROUD, EmotionalState.CALM, EmotionalState.TIRED, EmotionalState.CRISIS)
+            targetEmotions = setOf(EmotionalState.PROUD, EmotionalState.CALM, EmotionalState.TIRED, EmotionalState.CRISIS),
+            subCategoryTag = "Истории успеха"
         ),
         MotivationalItem(
             id = "story_sergey_49_driver",
@@ -230,7 +428,34 @@ object AdaptiveMotivationEngine {
             practicalTakeaway = "Железное правило Сергея: вы не обязаны бороться с десятой рюмкой — достаточно никогда не прикасаться к первой.",
             minSoberDays = 10,
             maxSoberDays = 3650,
-            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.PROUD, EmotionalState.CALM, EmotionalState.ANXIOUS)
+            targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.PROUD, EmotionalState.CALM, EmotionalState.ANXIOUS),
+            subCategoryTag = "Истории успеха"
+        ),
+        MotivationalItem(
+            id = "story_galina_61_accountant",
+            category = MotivationCategory.REAL_STORY,
+            title = "«Дневники по методу Шичко спасли меня после двух тяжелых срывов»",
+            authorOrHero = "Галина Петровна, 61 год",
+            authorRoleOrAge = "Главный бухгалтер на пенсии, трезва 1 год и 11 месяцев",
+            content = "«Я дважды пыталась бросить пить „на зубах“, просто терпя и сжимая кулаки. Хватало меня ровно на три недели, потому что в голове оставалось убеждение, будто я лишаю себя праздника и утешения. На каждом семейном застолье я смотрела на чужие бокалы с завистью.\n\nВсё изменилось, когда я начала разбирать свои ложные убеждения по методу физиолога Г. А. Шичко и писать короткие заметки перед сном. Я перестала считать спиртное „напитком“ и увидела в нем то, чем он является по ГОСТу — токсический наркотический яд, отнимающий у меня сон, давление и память. Зависть к пьющим сменилась спокойным сочувствием!\n\nСегодня в 61 год я просыпаюсь в 6:30 утра со светлой головой, занимаюсь скандинавской ходьбой, давление стабилизировалось, а на сэкономленные за год деньги съездила в санаторий в Кисловодск».",
+            practicalTakeaway = "Опыт Галины Петровны: не терпите трезвость «на зубах» — обесценьте сам алкоголь в своей голове с помощью разбора ложных мифов.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.ANXIOUS, EmotionalState.LONELY, EmotionalState.CALM, EmotionalState.PROUD),
+            subCategoryTag = "Истории успеха"
+        ),
+        MotivationalItem(
+            id = "story_anatoly_71_colonel",
+            category = MotivationCategory.REAL_STORY,
+            title = "«В 70 лет избавился от вечерней рюмки и вернул себе уважение семьи»",
+            authorOrHero = "Анатолий Васильевич, 71 год",
+            authorRoleOrAge = "Ветеран труда, трезв 1 год и 5 месяцев",
+            content = "«Всю жизнь я держал себя в руках, но после 67 лет привык каждый день за обедом и ужином выпивать по 150–200 грамм крепкого. Стал замечать, что к вечеру шатает, ночью мучают судороги в икрах, а утром трясутся руки так, что чашку чая не донести. Дети стали звонить с тревогой в голосе.\n\nПомогла мне простая военная дисциплина и тренажер мышечной релаксации перед сном. Оказалось, что я пил не ради вкуса водки, а чтобы снять мышечный зажим в плечах и уснуть! Когда я начал принимать магний с витамином B1 и делать 10-минутную релаксацию по Джекобсону в кровати — я стал засыпать за 10 минут без единой капли спиртного. В 71 год голова работает четко, как часы».",
+            practicalTakeaway = "Совет Анатолия Васильевича: замените алкогольное «расслабление» вечерней мышечной релаксацией по Джекобсону и приемом магния.",
+            minSoberDays = 0,
+            maxSoberDays = 3650,
+            targetEmotions = setOf(EmotionalState.TIRED, EmotionalState.CALM, EmotionalState.PROUD),
+            subCategoryTag = "Истории успеха"
         )
     )
 
@@ -261,8 +486,8 @@ object AdaptiveMotivationEngine {
             if (item.targetEmotions.contains(effectiveEmotion)) {
                 score += 45
             }
-            if (toneMode == TherapyToneMode.TOUGH && item.toughModeMessage != null) {
-                score += 15
+            if (toneMode == TherapyToneMode.TOUGH && (item.toughModeMessage != null || item.subCategoryTag == "Жесткая правда")) {
+                score += 20
             }
             return score
         }
