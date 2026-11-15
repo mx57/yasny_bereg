@@ -187,7 +187,7 @@ object ExpandedRecoveryContent {
         practice("practice_social_option", "Социальная поддержка", "Выбор подходящей группы поддержки", 5, "Сравните форматы и право остановить участие.", listOf("Найдите два доступных формата: очно, онлайн, взаимопомощь или консультация.", "Проверьте правила приватности и подход группы.", "Попробуйте встречу без обязательства продолжать.", "Обсудите с врачом, как совместить её с вашим лечением."), "Группы взаимопомощи могут быть дополнением, а не единственным вариантом лечения."),
         practice("practice_crisis_contact", "Ситуации риска", "План связи при кризисе", 4, "Запишите, кому звонить и где получить срочную помощь.", listOf("Добавьте местный экстренный номер и адрес ближайшей медицинской помощи.", "Выберите одного человека, которому можно сообщить о кризисе.", "Попросите его не оставлять вас одного, если это безопасно.", "При судорогах, спутанности сознания или галлюцинациях вызывайте экстренную помощь."), "План не заменяет медицинскую оценку алкогольной абстиненции."),
         practice("practice_self_kindness", "Восстановление", "Фраза поддержки вместо ярлыка", 2, "Используйте язык, который оставляет место для следующего шага.", listOf("Назовите ситуацию без оскорблений себя.", "Скажите: «Сейчас мне трудно, и я могу попросить помощи».", "Выберите один посильный шаг.", "Если есть риск для жизни или безопасности, обратитесь за срочной помощью."), "Сочувствие к себе не отменяет ответственность и не заменяет лечение.")
-    )
+    ) + AdditionalPracticeContent.practices
 
     private fun supplement(
         id: String,
@@ -348,6 +348,21 @@ object ExpandedRecoveryContent {
                 maxSoberDays = 3650,
                 targetEmotions = setOf(EmotionalState.CRISIS, EmotionalState.ANXIOUS, EmotionalState.LONELY, EmotionalState.TIRED, EmotionalState.CALM),
                 subCategoryTag = "Собирательные примеры"
+            ))
+        }
+        AdditionalMotivationContent.messages.forEachIndexed { index, copy ->
+            add(MotivationalItem(
+                id = "msg_support_${index + 1}",
+                category = MotivationCategory.DAILY_MESSAGE,
+                title = copy.title,
+                authorOrHero = "Редакция «Ясный Берег»",
+                authorRoleOrAge = "Авторское послание поддержки",
+                content = copy.text,
+                practicalTakeaway = copy.nextStep,
+                minSoberDays = 0,
+                maxSoberDays = 3650,
+                targetEmotions = copy.emotions,
+                subCategoryTag = if (copy.emotions.contains(EmotionalState.CRISIS)) "Трудный момент" else "Послание дня"
             ))
         }
     }
