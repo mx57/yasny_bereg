@@ -2,10 +2,12 @@ package com.example.ui.screens
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -58,7 +60,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -81,11 +82,10 @@ import com.example.data.local.TherapyToneMode
 import com.example.ui.UserProfileState
 
 private enum class MotivationFilter(val labelRu: String) {
-    ALL_ADAPTED("Все (${com.example.data.AdaptiveMotivationEngine.allItems.size})"),
-    MEDICAL_QUOTES("Врачи и хирурги"),
-    TOUGH_QUOTES("Жесткая правда"),
-    CLASSICS_QUOTES("Классики и философы"),
-    REAL_STORIES("Истории успеха"),
+    ALL_ADAPTED("Все материалы"),
+    TOUGH_QUOTES("Трудный момент"),
+    SUPPORT_THOUGHTS("Авторские мысли"),
+    REAL_STORIES("Собирательные примеры"),
     DAILY_MESSAGES("Послания дня"),
     BOOKMARKS("Избранное")
 }
@@ -97,7 +97,7 @@ fun MotivationScreen(
     adaptedMotivation: AdaptedMotivationBundle,
     bookmarks: List<MotivationalBookmarkEntity>,
     onToggleBookmark: (String) -> Unit,
-    onUpdateNotificationSchedule: (Int, Int, Boolean) -> Unit,
+    onUpdateNotificationSchedule: (Set<String>, Boolean) -> Unit,
     onSendNotificationNow: () -> Unit,
     onBackToHome: () -> Unit
 ) {
@@ -108,15 +108,22 @@ fun MotivationScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showNotificationSettings by remember { mutableStateOf(false) }
 
-    var selectedHour by remember(profile.notificationHour) { mutableIntStateOf(profile.notificationHour) }
+    var selectedTimes by remember(profile.notificationTimes) { mutableStateOf(profile.notificationTimes) }
     var notificationsEnabled by remember(profile.dailyNotificationsEnabled) {
         mutableStateOf(profile.dailyNotificationsEnabled)
     }
+    var pendingEnableAfterPermission by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { _ ->
-        onSendNotificationNow()
+    ) { granted ->
+        if (granted && pendingEnableAfterPermission) {
+            notificationsEnabled = true
+            onUpdateNotificationSchedule(selectedTimes.ifEmpty { setOf("08:00") }, true)
+        } else if (granted) {
+            onSendNotificationNow()
+        }
+        pendingEnableAfterPermission = false
     }
 
     val bookmarkedIds = remember(bookmarks) { bookmarks.map { it.itemId }.toSet() }
@@ -124,14 +131,11 @@ fun MotivationScreen(
     val displayedItems = remember(selectedFilter, adaptedMotivation, bookmarkedIds, searchQuery) {
         val byCategory = when (selectedFilter) {
             MotivationFilter.ALL_ADAPTED -> adaptedMotivation.allMatchedItems
-            MotivationFilter.MEDICAL_QUOTES -> adaptedMotivation.allMatchedItems.filter {
-                it.subCategoryTag == "Врачи и наука"
-            }
             MotivationFilter.TOUGH_QUOTES -> adaptedMotivation.allMatchedItems.filter {
-                it.subCategoryTag == "Жесткая правда" || !it.toughModeMessage.isNullOrBlank()
+                it.subCategoryTag == "Трудный момент"
             }
-            MotivationFilter.CLASSICS_QUOTES -> adaptedMotivation.allMatchedItems.filter {
-                it.subCategoryTag == "Классики и философы"
+            MotivationFilter.SUPPORT_THOUGHTS -> adaptedMotivation.allMatchedItems.filter {
+                it.category == MotivationCategory.FAMOUS_QUOTE
             }
             MotivationFilter.DAILY_MESSAGES -> adaptedMotivation.allMatchedItems.filter {
                 it.category == MotivationCategory.DAILY_MESSAGE
@@ -226,12 +230,12 @@ fun MotivationScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = "Ежедневные уведомления (${String.format("%02d:00", selectedHour)})",
+                                    text = "Напоминания • ${selectedTimes.sorted().joinToString(" · ").ifEmpty { "время не выбрано" }}",
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Text(
-                                    text = if (notificationsEnabled) "Включены • Нажмите для настройки времени"
-                                    else "Отключены • Нажмите для включения",
+                                    text = if (notificationsEnabled) "Включены • ${selectedTimes.size} в день"
+                                    else "Выключены • нажмите, чтобы настроить",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -257,8 +261,16 @@ fun MotivationScreen(
                                 Switch(
                                     checked = notificationsEnabled,
                                     onCheckedChange = { enabled ->
-                                        notificationsEnabled = enabled
-                                        onUpdateNotificationSchedule(selectedHour, 0, enabled)
+                                        if (enabled && selectedTimes.isEmpty()) selectedTimes = setOf("08:00")
+                                        if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                                        ) {
+                                            pendingEnableAfterPermission = true
+                                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                        } else {
+                                            notificationsEnabled = enabled
+                                            onUpdateNotificationSchedule(selectedTimes, enabled)
+                                        }
                                     },
                                     modifier = Modifier.testTag("toggle_daily_notifications")
                                 )
@@ -268,14 +280,16 @@ fun MotivationScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                listOf(7, 8, 9, 12, 18, 20, 21).forEach { hour ->
+                                listOf("08:00", "12:30", "16:00", "20:00").forEach { time ->
                                     FilterChip(
-                                        selected = selectedHour == hour,
+                                        selected = time in selectedTimes,
                                         onClick = {
-                                            selectedHour = hour
-                                            onUpdateNotificationSchedule(hour, 0, notificationsEnabled)
+                                            val updated = if (time in selectedTimes) selectedTimes - time else selectedTimes + time
+                                            selectedTimes = updated
+                                            if (updated.isEmpty()) notificationsEnabled = false
+                                            onUpdateNotificationSchedule(updated, notificationsEnabled && updated.isNotEmpty())
                                         },
-                                        label = { Text(String.format("%02d:00", hour)) }
+                                        label = { Text(time) }
                                     )
                                 }
                             }
@@ -285,7 +299,10 @@ fun MotivationScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                     Button(
                         onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                pendingEnableAfterPermission = false
                                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             } else {
                                 onSendNotificationNow()
@@ -317,7 +334,7 @@ fun MotivationScreen(
                         .fillMaxWidth()
                         .testTag("motivation_search_input"),
                     placeholder = {
-                        Text("Поиск по автору (Углов, Павлов, Шичко, Чехов) или слову...")
+                        Text("Поиск по теме или тексту…")
                     },
                     leadingIcon = {
                         Icon(imageVector = Icons.Default.Search, contentDescription = "Поиск")
@@ -388,7 +405,7 @@ fun MotivationScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (selectedFilter == MotivationFilter.BOOKMARKS) {
-                                "Нажмите на значок закладки на любой цитате врачей, классиков или истории успеха, чтобы сохранить её для трудной минуты."
+                                "Нажмите на закладку, чтобы сохранить авторскую мысль или собирательный пример."
                             } else {
                                 "Попробуйте сбросить фильтр или изменить текст в строке поиска."
                             },

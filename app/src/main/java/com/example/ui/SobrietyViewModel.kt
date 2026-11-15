@@ -41,20 +41,21 @@ enum class AppTab(val titleRu: String) {
 }
 
 data class UserProfileState(
-    val userName: String = "Павел Николаевич",
-    val sobrietyStartMillis: Long = System.currentTimeMillis() - 12L * 24L * 3600_000L, // Default 12 days sober
-    val dailySpendRub: Int = 650,
-    val dailyPureEthanolMl: Int = 95,
+    val userName: String = "Вы",
+    val sobrietyStartMillis: Long = System.currentTimeMillis(),
+    val dailySpendRub: Int = 0,
+    val dailyPureEthanolMl: Int = 0,
     val currentEmotion: EmotionalState = EmotionalState.CALM,
     val toneMode: TherapyToneMode = TherapyToneMode.ADAPTIVE,
     val elderlyLargeFont: Boolean = true,
     val notificationHour: Int = 9,
     val notificationMinute: Int = 0,
-    val dailyNotificationsEnabled: Boolean = true,
-    val checkedSupplementIds: Set<String> = setOf("supp_b1_thiamine", "supp_magnesium"),
-    val completedMeditationsCount: Int = 3,
-    val studiedMaterialIds: Set<String> = setOf("edu_triggers_infographic"),
-    val userCommunityActionsCount: Int = 1
+    val notificationTimes: Set<String> = setOf("08:00", "12:30", "20:00"),
+    val dailyNotificationsEnabled: Boolean = false,
+    val checkedSupplementIds: Set<String> = emptySet(),
+    val completedMeditationsCount: Int = 0,
+    val studiedMaterialIds: Set<String> = emptySet(),
+    val userCommunityActionsCount: Int = 0
 ) {
     val totalSoberHours: Int
         get() = ((System.currentTimeMillis() - sobrietyStartMillis).coerceAtLeast(0L) / 3_600_000L).toInt()
@@ -118,16 +119,14 @@ class SobrietyViewModel(
 
     val adaptedMotivation: StateFlow<AdaptedMotivationBundle> = combine(
         _profile,
-        diaryEntries,
-        vitalsReadings
-    ) { prof, diary, vitals ->
-        val latestCraving = diary.firstOrNull()?.cravingLevel ?: 2
-        val latestStress = vitals.firstOrNull()?.stressIndex ?: 35
+        diaryEntries
+    ) { prof, diary ->
+        val latestCraving = diary.firstOrNull()?.cravingLevel ?: -1
         AdaptiveMotivationEngine.selectAdaptedBundle(
             soberDays = prof.soberDays,
             currentEmotion = prof.currentEmotion,
             cravingLevel = latestCraving,
-            stressIndex = latestStress,
+            stressIndex = 0,
             toneMode = prof.toneMode
         )
     }.stateIn(
@@ -136,35 +135,46 @@ class SobrietyViewModel(
         initialValue = AdaptiveMotivationEngine.selectAdaptedBundle(
             soberDays = _profile.value.soberDays,
             currentEmotion = _profile.value.currentEmotion,
-            cravingLevel = 2,
-            stressIndex = 35,
+            cravingLevel = -1,
+            stressIndex = 0,
             toneMode = _profile.value.toneMode
         )
     )
 
     init {
         NotificationHelper.ensureChannelsCreated(appContext)
+        NotificationHelper.restoreSavedSchedule(appContext)
         seedInitialDataIfNeeded()
         refreshRelapseAnalytics()
     }
 
     private fun loadProfileFromPrefs(): UserProfileState {
-        val defaultStart = System.currentTimeMillis() - 12L * 24L * 3600_000L
+        val defaultStart = System.currentTimeMillis()
         val startMillis = prefs.getLong("sobriety_start_millis", defaultStart)
-        val spend = prefs.getInt("daily_spend_rub", 650)
-        val ethanol = prefs.getInt("daily_ethanol_ml", 95)
+        val spend = prefs.getInt("daily_spend_rub", 0)
+        val ethanol = 0
         val emotionName = prefs.getString("current_emotion", EmotionalState.CALM.name) ?: EmotionalState.CALM.name
         val toneName = prefs.getString("tone_mode", TherapyToneMode.ADAPTIVE.name) ?: TherapyToneMode.ADAPTIVE.name
         val largeFont = prefs.getBoolean("elderly_large_font", true)
         val notifHour = prefs.getInt("notif_hour", 9)
         val notifMin = prefs.getInt("notif_minute", 0)
-        val notifEnabled = prefs.getBoolean("notif_enabled", true)
+        val notifEnabled = prefs.getBoolean("notif_enabled", false)
+        val storedTimes = prefs.getStringSet("notif_times", null)?.toSet()
+        val notificationTimes = storedTimes?.intersect(NotificationHelper.reminderTimes.toSet())
+            ?: if (notifEnabled) {
+                val legacyTarget = prefs.getInt("notif_hour", 9) * 60 + prefs.getInt("notif_minute", 0)
+                val legacySlot = NotificationHelper.reminderTimes.minByOrNull { time ->
+                    val parts = time.split(":")
+                    kotlin.math.abs((parts[0].toInt() * 60 + parts[1].toInt()) - legacyTarget)
+                } ?: "08:00"
+                setOf(legacySlot)
+            } else setOf("08:00", "12:30", "20:00")
         val supps = prefs.getStringSet("checked_supplements", null)?.toSet()
-            ?: setOf("supp_b1_thiamine", "supp_magnesium")
-        val meditations = prefs.getInt("completed_meditations_count", 3)
+            ?: emptySet()
+        val meditations = prefs.getInt("completed_meditations_count", 0)
         val studied = prefs.getStringSet("studied_materials", null)?.toSet()
-            ?: setOf("edu_triggers_infographic")
-        val commActions = prefs.getInt("user_community_actions", 1)
+            ?: emptySet()
+        val commActions = prefs.getInt("user_community_actions", 0)
 
         return UserProfileState(
             sobrietyStartMillis = startMillis,
@@ -175,6 +185,7 @@ class SobrietyViewModel(
             elderlyLargeFont = largeFont,
             notificationHour = notifHour,
             notificationMinute = notifMin,
+            notificationTimes = notificationTimes,
             dailyNotificationsEnabled = notifEnabled,
             checkedSupplementIds = supps,
             completedMeditationsCount = meditations,
@@ -193,6 +204,7 @@ class SobrietyViewModel(
             .putBoolean("elderly_large_font", state.elderlyLargeFont)
             .putInt("notif_hour", state.notificationHour)
             .putInt("notif_minute", state.notificationMinute)
+            .putStringSet("notif_times", state.notificationTimes)
             .putBoolean("notif_enabled", state.dailyNotificationsEnabled)
             .putStringSet("checked_supplements", state.checkedSupplementIds)
             .putInt("completed_meditations_count", state.completedMeditationsCount)
@@ -202,68 +214,7 @@ class SobrietyViewModel(
     }
 
     private fun seedInitialDataIfNeeded() {
-        viewModelScope.launch {
-            if (dao.countCommunityPosts() == 0) {
-                val now = System.currentTimeMillis()
-                dao.insertCommunityPosts(
-                    listOf(
-                        CommunityPostEntity(
-                            authorName = "Михаил Федорович",
-                            authorAge = 66,
-                            soberDays = 184,
-                            categoryTag = "Поддержка старшего поколения",
-                            messageText = "Ребята и ровесники, держитесь! Мне 66 лет, пил почти сорок лет с перерывами. Сегодня ровно полгода полной трезвости. Утром прошел 5 километров по парку, давление 126 на 78 без таблеток. Главное — пережить первые две недели и не слушать уговоры старых собутыльников.",
-                            supportCount = 42,
-                            timestampMillis = now - 3_600_000L * 3
-                        ),
-                        CommunityPostEntity(
-                            authorName = "Анна Викторовна",
-                            authorAge = 54,
-                            soberDays = 31,
-                            categoryTag = "Месяц без алкоголя",
-                            messageText = "Сегодня мой 30-й трезвый день! Очень помог дневник самочувствия и вечерний магний с травяным сбором. Когда на 10-й день накрыла тоска, прочитала здесь историю Виктора Павловича и расплакалась — не пошла в магазин. Спасибо каждому из вас!",
-                            supportCount = 29,
-                            timestampMillis = now - 3_600_000L * 8
-                        ),
-                        CommunityPostEntity(
-                            authorName = "Дмитрий",
-                            authorAge = 44,
-                            soberDays = 7,
-                            categoryTag = "Первая неделя",
-                            messageText = "Седьмой день позади. Первые трое суток руки ходили ходуном, пульс зашкаливал. Дышал по квадрату 4-7-8 и включал жесткую демотивацию каждый раз, когда тянуло к ларьку. Сегодня впервые нормально поспал 7 часов!",
-                            supportCount = 35,
-                            timestampMillis = now - 3_600_000L * 15
-                        )
-                    )
-                )
-
-                // Seed 2 initial encrypted diary & physiological readings so charts & doctor report have immediate context
-                dao.insertDiaryEntry(
-                    WellnessDiaryEntity(
-                        timestampMillis = now - 86_400_000L,
-                        emotionalStateName = EmotionalState.CALM.name,
-                        cravingLevel = 2,
-                        sleepHours = 7.5f,
-                        encryptedSymptoms = CryptoVault.encrypt("Утренняя ясность, тремора нет, аппетит хороший"),
-                        encryptedComment = CryptoVault.encrypt("Вечером гулял в парке, принял витамин B1 и магний. Тяги почти не было."),
-                        tookSupplements = true
-                    )
-                )
-                dao.insertPhysiologicalReading(
-                    PhysiologicalReadingEntity(
-                        timestampMillis = now - 43_200_000L,
-                        heartRateBpm = 68,
-                        systolicBp = 124,
-                        diastolicBp = 78,
-                        stressIndex = 32,
-                        hrvRmssdMs = 46,
-                        sourceDevice = "Утренний контроль в покое",
-                        isCriticalAlert = false,
-                        encryptedNote = CryptoVault.encrypt("Спокойный пульс после полноценного сна")
-                    )
-                )
-            }
-        }
+        // Never create sample testimonials or health measurements that could be mistaken for real data.
     }
 
     fun selectTab(tab: AppTab) {
@@ -292,12 +243,6 @@ class SobrietyViewModel(
         val updated = _profile.value.copy(currentEmotion = emotion)
         _profile.value = updated
         saveProfileToPrefs(updated)
-        if (emotion == EmotionalState.CRISIS) {
-            triggerCriticalStateNotification(
-                "Зафиксирована острая тяга к алкоголю",
-                "Включен протокол защиты от срыва. Выпейте 2 стакана воды и откройте экстренную технику НЛП или дыхания."
-            )
-        }
         refreshRelapseAnalytics()
     }
 
@@ -312,7 +257,7 @@ class SobrietyViewModel(
         val newStart = System.currentTimeMillis() - daysAgo.coerceAtLeast(0).toLong() * 24L * 3600_000L
         val updated = _profile.value.copy(
             sobrietyStartMillis = newStart,
-            dailySpendRub = dailySpendRub.coerceAtLeast(100)
+            dailySpendRub = dailySpendRub.coerceAtLeast(0)
         )
         _profile.value = updated
         saveProfileToPrefs(updated)
@@ -345,30 +290,26 @@ class SobrietyViewModel(
         }
     }
 
-    fun updateDailyNotificationSchedule(hour: Int, minute: Int, enabled: Boolean) {
+    fun updateDailyNotificationTimes(times: Set<String>, enabled: Boolean) {
+        val selected = times.intersect(NotificationHelper.reminderTimes.toSet())
+        val active = enabled && selected.isNotEmpty()
+        val firstTime = selected.sorted().firstOrNull()?.split(":")
+        val hour = firstTime?.getOrNull(0)?.toIntOrNull() ?: _profile.value.notificationHour
+        val minute = firstTime?.getOrNull(1)?.toIntOrNull() ?: _profile.value.notificationMinute
         val updated = _profile.value.copy(
-            notificationHour = hour.coerceIn(0, 23),
-            notificationMinute = minute.coerceIn(0, 59),
-            dailyNotificationsEnabled = enabled
+            notificationHour = hour,
+            notificationMinute = minute,
+            notificationTimes = selected,
+            dailyNotificationsEnabled = active
         )
         _profile.value = updated
         saveProfileToPrefs(updated)
-        if (enabled) {
-            val currentMsg = adaptedMotivation.value.dailyMessage
-            NotificationHelper.scheduleDailyMotivation(
-                context = appContext,
-                hourOfDay = updated.notificationHour,
-                minute = updated.notificationMinute,
-                title = "Ясный Берег • ${currentMsg.title}",
-                body = currentMsg.content
-            )
-            _statusToast.value = String.format(
-                "Ежедневные уведомления настроены на %02d:%02d",
-                updated.notificationHour,
-                updated.notificationMinute
-            )
+        if (active) {
+            NotificationHelper.scheduleDailyMotivations(appContext, selected)
+            _statusToast.value = "Поддерживающие напоминания: ${selected.sorted().joinToString(", ")}"
         } else {
-            _statusToast.value = "Ежедневные уведомления отключены"
+            NotificationHelper.cancelAllDailyMotivations(appContext)
+            _statusToast.value = if (enabled) "Выберите хотя бы одно время напоминания" else "Напоминания отключены"
         }
     }
 
@@ -377,7 +318,7 @@ class SobrietyViewModel(
         val sent = NotificationHelper.sendNotificationNow(
             context = appContext,
             title = "Послание дня (${_profile.value.soberDays} дн. трезвости): ${bundle.dailyMessage.title}",
-            body = "${bundle.dailyMessage.content}\n\nЦитата дня: ${bundle.famousQuote.authorOrHero} — ${bundle.famousQuote.content}",
+            body = "${bundle.dailyMessage.content}\n\nМысль для поддержки: ${bundle.famousQuote.content}",
             isCritical = false
         )
         _statusToast.value = if (sent) {
@@ -440,14 +381,7 @@ class SobrietyViewModel(
             _profile.value = updatedProf
             saveProfileToPrefs(updatedProf)
 
-            if (cravingLevel >= 7 || emotion == EmotionalState.CRISIS) {
-                triggerCriticalStateNotification(
-                    "Высокий риск срыва (Тяга $cravingLevel/10)",
-                    "Система зафиксировала опасный уровень тяги в дневнике. Немедленно выполните технику «Серфинг тяги» или включите «Жесткий режим»."
-                )
-            } else {
-                _statusToast.value = "Запись зашифрована (AES-256) и сохранена в оффлайн-дневник"
-            }
+            _statusToast.value = "Запись сохранена в офлайн-дневник. Оценка тяги — ваша заметка, не медицинский диагноз."
             refreshRelapseAnalytics()
         }
     }
@@ -470,30 +404,20 @@ class SobrietyViewModel(
             val cleanBpm = heartRateBpm.coerceIn(40, 220)
             val cleanSys = systolicBp.coerceIn(70, 250)
             val cleanDia = diastolicBp.coerceIn(40, 150)
-            val (stress, hrv) = BleHeartRateManager.calculateStressAndHrvFromBpm(cleanBpm)
-            val isCritical = cleanBpm >= 100 || cleanSys >= 155 || stress >= 80
 
             val entity = PhysiologicalReadingEntity(
                 timestampMillis = System.currentTimeMillis(),
                 heartRateBpm = cleanBpm,
                 systolicBp = cleanSys,
                 diastolicBp = cleanDia,
-                stressIndex = stress,
-                hrvRmssdMs = hrv,
+                stressIndex = 0,
+                hrvRmssdMs = 0,
                 sourceDevice = sourceDevice,
-                isCriticalAlert = isCritical,
+                isCriticalAlert = false,
                 encryptedNote = CryptoVault.encrypt(notePlain.trim())
             )
             dao.insertPhysiologicalReading(entity)
-
-            if (isCritical) {
-                triggerCriticalStateNotification(
-                    "Критический физиологический стресс (ЧСС $cleanBpm, АД $cleanSys/$cleanDia, Стресс $stress%)",
-                    "Обнаружена вегетативная перегрузка! Высокий пульс и давление часто провоцируют срыв. Сядьте, выпейте воды и выполните медленное дыхание."
-                )
-            } else {
-                _statusToast.value = "Показатели сохранены и зашифрованы (Индекс стресса: $stress%)"
-            }
+            _statusToast.value = "Замер сохранён. Расчёт медицинского риска, HRV и стресса по нему не выполняется."
             refreshRelapseAnalytics()
         }
     }
@@ -501,13 +425,7 @@ class SobrietyViewModel(
     fun saveCurrentBleReadingToVault() {
         val w = wearableState.value
         if (w.currentHeartRateBpm > 0) {
-            addPhysiologicalReading(
-                heartRateBpm = w.currentHeartRateBpm,
-                systolicBp = 125,
-                diastolicBp = 80,
-                sourceDevice = w.connectedDeviceName ?: "BLE Носимый пульсометр",
-                notePlain = "Замер с носимого датчика по Bluetooth LE"
-            )
+            _statusToast.value = "Пульс с датчика: ${w.currentHeartRateBpm} уд/мин. Сохранение замера отложено, чтобы не подставлять неподтверждённое давление."
         }
     }
 

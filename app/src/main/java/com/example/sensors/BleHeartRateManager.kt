@@ -38,9 +38,8 @@ data class DiscoveredBleDevice(
 )
 
 /**
- * Connects to real Bluetooth Low Energy (BLE) wearable Heart Rate sensors
- * implementing the standard GATT Heart Rate Service (0x180D) and Heart Rate
- * Measurement Characteristic (0x2A37), computing real-time HRV and physiological stress.
+ * Reads pulse from Bluetooth Low Energy (BLE) devices using the standard GATT Heart Rate profile.
+ * HRV is calculated only when actual RR intervals are transmitted; no stress score is inferred.
  */
 class BleHeartRateManager(private val context: Context) {
 
@@ -61,20 +60,10 @@ class BleHeartRateManager(private val context: Context) {
         val CLIENT_CHARACTERISTIC_CONFIG_UUID: UUID =
             UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
-        fun calculateStressAndHrvFromBpm(heartRateBpm: Int, rrIntervals: List<Int> = emptyList()): Pair<Int, Int> {
-            val hrvRmssd = if (rrIntervals.size >= 2) {
-                val diffsSquared = rrIntervals.zipWithNext { a, b -> (b - a).toDouble() * (b - a).toDouble() }
-                sqrt(diffsSquared.average()).roundToInt().coerceIn(10, 120)
-            } else {
-                // Physiological estimate of vagal tone from resting heart rate when RR is not broadcast
-                (115 - heartRateBpm).coerceIn(12, 85)
-            }
-
-            val rawStress = ((heartRateBpm - 55) * 1.4f + (60 - hrvRmssd) * 0.7f)
-                .roundToInt()
-                .coerceIn(10, 99)
-
-            return Pair(rawStress, hrvRmssd)
+        fun calculateRmssdFromRrIntervals(rrIntervals: List<Int>): Int {
+            if (rrIntervals.size < 3) return 0
+            val diffsSquared = rrIntervals.zipWithNext { a, b -> (b - a).toDouble() * (b - a).toDouble() }
+            return sqrt(diffsSquared.average()).roundToInt().coerceAtLeast(0)
         }
     }
 
@@ -168,6 +157,7 @@ class BleHeartRateManager(private val context: Context) {
         activeGatt = device.connectGatt(context, false, object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    recentRrIntervalsMs.clear()
                     _state.value = _state.value.copy(
                         isConnected = true,
                         connectedDeviceName = gatt.device.name ?: address,
@@ -244,12 +234,12 @@ class BleHeartRateManager(private val context: Context) {
             }
         }
 
-        val (stress, hrv) = calculateStressAndHrvFromBpm(bpm, recentRrIntervalsMs.toList())
+        val hrv = calculateRmssdFromRrIntervals(recentRrIntervalsMs.toList())
         _state.value = _state.value.copy(
             currentHeartRateBpm = bpm,
             currentHrvRmssdMs = hrv,
-            currentStressIndex = stress,
-            statusMessage = "Поток с датчика: ЧСС $bpm уд/мин • Стресс $stress%"
+            currentStressIndex = 0,
+            statusMessage = if (hrv > 0) "Измерено с датчика: пульс $bpm уд/мин; RR-интервалы доступны (HRV не является диагнозом)." else "Измерен пульс $bpm уд/мин; этот датчик не передал достаточно RR-интервалов для оценки HRV."
         )
     }
 

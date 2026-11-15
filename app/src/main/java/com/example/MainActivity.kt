@@ -223,6 +223,7 @@ fun YasnyBeregAppRoot() {
                 when (selectedTab) {
                     AppTab.HOME -> HomeAndTrackerScreen(
                         profile = profile,
+                        diaryEntriesCount = diaryEntries.size,
                         adaptedMotivation = adaptedMotivation,
                         relapseReport = relapseReport,
                         isAnalyzingRisk = isAnalyzingRisk,
@@ -246,8 +247,8 @@ fun YasnyBeregAppRoot() {
                         adaptedMotivation = adaptedMotivation,
                         bookmarks = bookmarks,
                         onToggleBookmark = { viewModel.toggleMotivationalBookmark(it) },
-                        onUpdateNotificationSchedule = { hour, min, enabled ->
-                            viewModel.updateDailyNotificationSchedule(hour, min, enabled)
+                        onUpdateNotificationSchedule = { times, enabled ->
+                            viewModel.updateDailyNotificationTimes(times, enabled)
                         },
                         onSendNotificationNow = {
                             viewModel.sendAdaptiveMotivationalNotificationNow()
@@ -298,7 +299,7 @@ fun YasnyBeregAppRoot() {
             }
         }
 
-        // Emergency Anti-Relapse SOS Dialog ("СТОП-СРЫВ")
+        // Support and urgent-symptom guidance
         if (showEmergencyDialog) {
             AlertDialog(
                 onDismissRequest = { viewModel.setEmergencyDialogVisible(false) },
@@ -310,7 +311,7 @@ fun YasnyBeregAppRoot() {
                             tint = MaterialTheme.colorScheme.error
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Протокол «СТОП-СРЫВ»")
+                        Text("Поддержка сейчас")
                     }
                 },
                 text = {
@@ -319,12 +320,12 @@ fun YasnyBeregAppRoot() {
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            text = "1. Остановитесь на 15 минут. Физиологический пик острой тяги длится не более 15 минут — не покупайте спиртное и не наливайте прямо сейчас.",
+                            text = "Если после прекращения алкоголя возникли судороги, галлюцинации, спутанность сознания или тяжёлое ухудшение — вызовите местную экстренную помощь сейчас. Не оставайтесь в одиночестве и не садитесь за руль.",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "2. Выпейте 2 больших стакана воды и съешьте плотную пищу: падение сахара в крови усиливает тягу втрое.",
+                            text = "Если опасных симптомов нет, но появилась тяга или тревога: перейдите в безопасное место, свяжитесь с надёжным человеком и выберите один посильный следующий шаг.",
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Surface(
@@ -333,12 +334,12 @@ fun YasnyBeregAppRoot() {
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    text = "⚡ Жесткая правда о первой рюмке:",
+                                    text = "Важно:",
                                     style = MaterialTheme.typography.labelLarge,
                                     color = MaterialTheme.colorScheme.onErrorContainer
                                 )
                                 Text(
-                                    text = "Удовольствие продлится 20 минут, а расплата — скачок давления до 180, тахикардия в 4 утра, риск инсульта, стыд перед семьей и обнуление ваших ${profile.soberDays} дней чистоты.",
+                                    text = "Приложение не определяет медицинскую срочность. Если вы не уверены, нужна ли помощь, позвоните медицинскому специалисту или в местную экстренную службу.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onErrorContainer
                                 )
@@ -357,7 +358,7 @@ fun YasnyBeregAppRoot() {
                                 containerColor = MaterialTheme.colorScheme.primary
                             )
                         ) {
-                            Text("Включить дыхание 4-7-8 и НЛП «Взмах»")
+                            Text("Открыть безопасные практики")
                         }
                         OutlinedButton(
                             onClick = {
@@ -368,13 +369,13 @@ fun YasnyBeregAppRoot() {
                                 .fillMaxWidth()
                                 .heightIn(min = 52.dp)
                         ) {
-                            Text("Читать истории тех, кто выстоял")
+                            Text("Открыть послания поддержки")
                         }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = { viewModel.setEmergencyDialogVisible(false) }) {
-                        Text("Я остаюсь трезвым сегодня")
+                        Text("Закрыть")
                     }
                 }
             )

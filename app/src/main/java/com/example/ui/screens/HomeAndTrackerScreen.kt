@@ -50,7 +50,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,17 +69,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.data.AdaptedMotivationBundle
+import com.example.data.ExpandedRecoveryContent
 import com.example.data.MethodsAndScienceCatalog
 import com.example.data.RelapseRiskReport
 import com.example.data.local.EmotionalState
 import com.example.data.local.TherapyToneMode
 import com.example.ui.AppTab
 import com.example.ui.UserProfileState
+import kotlinx.coroutines.delay
+import java.util.Calendar
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeAndTrackerScreen(
     profile: UserProfileState,
+    diaryEntriesCount: Int,
     adaptedMotivation: AdaptedMotivationBundle,
     relapseReport: RelapseRiskReport?,
     isAnalyzingRisk: Boolean,
@@ -91,12 +97,20 @@ fun HomeAndTrackerScreen(
 ) {
     var showEditTrackerModal by remember { mutableStateOf(false) }
     var customAnalysisQuestion by remember { mutableStateOf("") }
+    var currentHour by remember { mutableIntStateOf(Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            delay(60_000L)
+        }
+    }
+    val daypartSupport = remember(currentHour) { ExpandedRecoveryContent.daypartForHour(currentHour) }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Spacer(modifier = Modifier.height(4.dp))
@@ -115,12 +129,12 @@ fun HomeAndTrackerScreen(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(235.dp)
+                            .height(215.dp)
                     )
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(235.dp)
+                            .height(215.dp)
                             .background(
                                 Brush.verticalGradient(
                                     colors = listOf(
@@ -133,7 +147,7 @@ fun HomeAndTrackerScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp)
+                            .padding(16.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -183,7 +197,7 @@ fun HomeAndTrackerScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "ВАША ЧИСТАЯ И ТРЕЗВАЯ ЖИЗНЬ",
+                            text = "ВАШ ЛИЧНЫЙ ПЛАН",
                             style = MaterialTheme.typography.labelMedium,
                             color = Color(0xFFD7EFE0)
                         )
@@ -219,7 +233,7 @@ fun HomeAndTrackerScreen(
                                             color = Color.White
                                         )
                                         Text(
-                                            text = "Сохранено семье",
+                                            text = if (profile.dailySpendRub > 0) "Оценка по вашим данным" else "Добавьте свои траты",
                                             style = MaterialTheme.typography.labelMedium,
                                             color = Color(0xFFD7EFE0)
                                         )
@@ -243,12 +257,12 @@ fun HomeAndTrackerScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column {
                                         Text(
-                                            text = "${profile.pureEthanolAvoidedMl} мл",
+                                            text = if (profile.dailyPureEthanolMl > 0) "${profile.pureEthanolAvoidedMl} мл" else "—",
                                             style = MaterialTheme.typography.titleMedium,
                                             color = Color.White
                                         )
                                         Text(
-                                            text = "Яда не выпито",
+                                            text = if (profile.dailyPureEthanolMl > 0) "Оценка по вашим данным" else "Данные не введены",
                                             style = MaterialTheme.typography.labelMedium,
                                             color = Color(0xFFD7EFE0)
                                         )
@@ -261,7 +275,23 @@ fun HomeAndTrackerScreen(
             }
         }
 
-        // Giant SOS Emergency Help Button for Elderly & Crisis Accessibility
+        item {
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth().testTag("daypart_support_card"),
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Text("${daypartSupport.label} · ${daypartSupport.heading}", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(daypartSupport.message, style = MaterialTheme.typography.bodyMedium)
+                    TextButton(onClick = { onNavigateToTab(AppTab.METHODS) }) {
+                        Text("${daypartSupport.actionTitle}: ${daypartSupport.action}")
+                    }
+                }
+            }
+        }
+
+        // Quick access to support; this is not emergency monitoring.
         item {
             Button(
                 onClick = onOpenEmergencyHelp,
@@ -284,12 +314,12 @@ fun HomeAndTrackerScreen(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(horizontalAlignment = Alignment.Start) {
                     Text(
-                        text = "СТОП-СРЫВ: ЭКСТРЕННАЯ ПОМОЩЬ",
+                        text = "НУЖНА ПОДДЕРЖКА СЕЙЧАС?",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Нажмите, если появилась тяга, тревога или желание выпить",
+                        text = "Откройте варианты помощи. При опасных симптомах вызовите экстренную службу.",
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
@@ -311,7 +341,7 @@ fun HomeAndTrackerScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Выберите состояние — система мгновенно адаптирует ежедневные послания, цитаты и методы защиты:",
+                        text = "Выберите состояние для подбора поддержки. Это не диагноз и не оценка медицинского риска.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -393,7 +423,7 @@ fun HomeAndTrackerScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "ПЕРСОНАЛЬНОЕ ПОСЛАНИЕ ДНЯ",
+                                text = "ПОДДЕРЖКА НА СЕЙЧАС",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
@@ -487,7 +517,7 @@ fun HomeAndTrackerScreen(
                             )
                         ) {
                             Text(
-                                text = "Все цитаты и истории",
+                                text = "Больше поддержки",
                                 style = MaterialTheme.typography.labelLarge
                             )
                         }
@@ -499,8 +529,10 @@ fun HomeAndTrackerScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.NotificationsActive,
-                                contentDescription = "Уведомление"
+                                contentDescription = "Отправить послание сейчас"
                             )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Сейчас")
                         }
                     }
                 }
@@ -595,7 +627,7 @@ fun HomeAndTrackerScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Аналитика предотвращения срывов",
+                                text = "Самопроверка и план поддержки",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
@@ -616,7 +648,7 @@ fun HomeAndTrackerScreen(
                             CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = "Оценка эмоциональных и физиологических факторов риска...",
+                                text = "Подбираем локальные подсказки по вашим заметкам…",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -628,7 +660,7 @@ fun HomeAndTrackerScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = relapseReport.firebaseNotice,
+                                text = relapseReport.safetyNote,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(10.dp)
@@ -637,24 +669,14 @@ fun HomeAndTrackerScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "Уровень риска: ${relapseReport.riskLevelLabel} (${relapseReport.riskScorePercent}%)",
+                            text = relapseReport.attentionLevel,
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
                         Spacer(modifier = Modifier.height(6.dp))
-                        LinearProgressIndicator(
-                            progress = { relapseReport.riskScorePercent / 100f },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(10.dp)
-                                .clip(RoundedCornerShape(5.dp)),
-                            color = if (relapseReport.riskScorePercent >= 60) MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.primary
-                        )
-
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = relapseReport.clinicalSummary,
+                            text = relapseReport.supportSummary,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
@@ -674,19 +696,13 @@ fun HomeAndTrackerScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = relapseReport.recommendedSupplementFocus,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = customAnalysisQuestion,
                         onValueChange = { customAnalysisQuestion = it },
-                        label = { Text("Опишите ситуацию или триггер для разбора") },
+                        label = { Text("Заметка для себя (локальная подсказка)") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("custom_trigger_input"),
@@ -700,7 +716,7 @@ fun HomeAndTrackerScreen(
                             .heightIn(min = 52.dp)
                             .testTag("run_relapse_analysis_button")
                     ) {
-                        Text("Рассчитать план предотвращения срыва")
+                        Text("Показать варианты поддержки")
                     }
                 }
             }
@@ -713,14 +729,15 @@ fun HomeAndTrackerScreen(
                 profile.soberDays,
                 profile.completedMeditationsCount,
                 profile.studiedMaterialIds.size,
-                profile.userCommunityActionsCount
+                profile.userCommunityActionsCount,
+                diaryEntriesCount
             ) {
                 com.example.data.EducationAndAchievementsCatalog.buildAchievementsList(
                     soberDays = profile.soberDays,
                     completedMeditationsCount = profile.completedMeditationsCount,
                     studiedMaterialsCount = profile.studiedMaterialIds.size,
                     communityInteractionsCount = profile.userCommunityActionsCount,
-                    diaryAndVitalsCount = 3
+                    diaryAndVitalsCount = diaryEntriesCount
                 )
             }
             val unlockedCount = achievements.count { it.isUnlocked }
@@ -855,7 +872,7 @@ fun HomeAndTrackerScreen(
             }
         }
 
-        // Organ & Body Recovery Milestones
+        // General health reminders; not a biological recovery timer
         item {
             var showAllMilestones by remember { mutableStateOf(false) }
             val visibleMilestones = if (showAllMilestones) {
@@ -866,78 +883,32 @@ fun HomeAndTrackerScreen(
 
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Заметки о заботе о здоровье", style = MaterialTheme.typography.titleLarge)
                     Text(
-                        text = "Биологическое восстановление вашего тела",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Text(
-                        text = "На основе ${profile.totalSoberHours} часов без этилового спирта:",
+                        "Счётчик показывает только время, а не состояние органов. Сроки восстановления индивидуальны.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    visibleMilestones.forEach { milestone ->
-                        val progress = (profile.totalSoberHours.toFloat() / milestone.requiredHours.toFloat())
-                            .coerceIn(0f, 1f)
-                        val percent = (progress * 100).toInt()
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = milestone.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Text(
-                                    text = "$percent%",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            Text(
-                                text = milestone.physiologicalProcess,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                            )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    visibleMilestones.forEachIndexed { index, milestone ->
+                        Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                            Text("${index + 1}. ${milestone.title}", style = MaterialTheme.typography.titleMedium)
+                            Text(milestone.organSystem, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(milestone.physiologicalProcess, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = { showAllMilestones = !showAllMilestones },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                            .testTag("toggle_all_organ_milestones_button")
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("toggle_all_organ_milestones_button")
                     ) {
-                        Text(
-                            if (showAllMilestones) "Свернуть этапы регенерации"
-                            else "Показать все этапы до 1 года (${MethodsAndScienceCatalog.organMilestones.size})"
-                        )
+                        Text(if (showAllMilestones) "Свернуть заметки" else "Показать все заметки (${MethodsAndScienceCatalog.organMilestones.size})")
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 

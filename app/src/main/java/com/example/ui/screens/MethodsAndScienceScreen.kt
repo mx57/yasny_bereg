@@ -75,6 +75,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -90,20 +91,20 @@ import com.example.ui.UserProfileState
 import kotlinx.coroutines.delay
 
 private enum class MethodsSection(val labelRu: String) {
-    ALL("Все разделы"),
-    INTERACTIVE_TRAINERS("Тренажеры (5)"),
-    PSYCHOLOGY_NLP("КПТ, Шичко и НЛП"),
-    TOUGH_DEMOTIVATION("Жесткая демотивация"),
-    EDUCATION("Обучение"),
-    SUPPLEMENTS("Биодобавки")
+    ALL("Всё"),
+    INTERACTIVE_TRAINERS("Тренажёры"),
+    PSYCHOLOGY_NLP("Практики"),
+    TOUGH_DEMOTIVATION("Ситуации риска"),
+    EDUCATION("Статьи"),
+    SUPPLEMENTS("Добавки")
 }
 
 private enum class InteractiveTrainerTab(val labelRu: String) {
     GROUNDING_54321("Заземление 5-4-3-2-1"),
-    SHICHKO_MYTHS("Разбор мифов (Шичко/КПТ)"),
+    SHICHKO_MYTHS("Разбор мифов"),
     JACOBSON_PMR("Релаксация Джекобсона"),
-    BREATHING_478("Дыхание 4-7-8"),
-    NLP_SWISH("НЛП «Взмах»")
+    BREATHING_478("Комфортное дыхание"),
+    NLP_SWISH("Фраза отказа")
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -122,9 +123,9 @@ fun MethodsAndScienceScreen(
     var selectedEduFormat by remember { mutableStateOf<EducationalFormat?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
-    // 1. Interactive 4-7-8 Breathing Anti-Craving Coach state
+    // 1. Optional comfortable-breathing practice state
     var isBreathingActive by remember { mutableStateOf(false) }
-    var breathingPhase by remember { mutableStateOf("Готов к старту (Цикл 4-7-8)") }
+    var breathingPhase by remember { mutableStateOf("Готов к спокойному дыханию") }
     var phaseSecondsLeft by remember { mutableIntStateOf(0) }
     var targetCircleScale by remember { mutableStateOf(1.0f) }
 
@@ -148,26 +149,20 @@ fun MethodsAndScienceScreen(
     LaunchedEffect(isBreathingActive) {
         while (isBreathingActive) {
             targetCircleScale = 1.25f
-            for (s in 4 downTo 1) {
-                breathingPhase = "Глубокий вдох носом..."
-                phaseSecondsLeft = s
-                delay(1000L)
-            }
-            targetCircleScale = 1.25f
-            for (s in 7 downTo 1) {
-                breathingPhase = "Спокойная задержка дыхания..."
+            for (s in 3 downTo 1) {
+                breathingPhase = "Спокойный вдох (если комфортно)..."
                 phaseSecondsLeft = s
                 delay(1000L)
             }
             targetCircleScale = 0.88f
-            for (s in 8 downTo 1) {
-                breathingPhase = "Медленный выдох через губы..."
+            for (s in 4 downTo 1) {
+                breathingPhase = "Мягкий выдох (без усилия)..."
                 phaseSecondsLeft = s
                 delay(1000L)
             }
         }
         targetCircleScale = 1.0f
-        breathingPhase = "Готов к старту (Цикл 4-7-8)"
+        breathingPhase = "Готов к спокойному дыханию"
         phaseSecondsLeft = 0
     }
 
@@ -200,7 +195,7 @@ fun MethodsAndScienceScreen(
         val base = when (selectedSection) {
             MethodsSection.ALL -> MethodsAndScienceCatalog.therapyTechniques
             MethodsSection.PSYCHOLOGY_NLP -> MethodsAndScienceCatalog.therapyTechniques.filter { !it.isToughDemotivation }
-            MethodsSection.TOUGH_DEMOTIVATION -> MethodsAndScienceCatalog.therapyTechniques.filter { it.isToughDemotivation }
+            MethodsSection.TOUGH_DEMOTIVATION -> MethodsAndScienceCatalog.therapyTechniques.filter { it.categoryTitle == "Ситуации риска" }
             MethodsSection.INTERACTIVE_TRAINERS,
             MethodsSection.EDUCATION,
             MethodsSection.SUPPLEMENTS -> emptyList()
@@ -238,7 +233,9 @@ fun MethodsAndScienceScreen(
             if (q.isEmpty()) all else all.filter {
                 it.name.contains(q, ignoreCase = true) ||
                     it.primaryBenefit.contains(q, ignoreCase = true) ||
-                    it.mechanismOfAction.contains(q, ignoreCase = true)
+                it.mechanismOfAction.contains(q, ignoreCase = true) ||
+                    it.evidenceStrength.contains(q, ignoreCase = true) ||
+                    it.cautionNote.contains(q, ignoreCase = true)
             }
         }
     }
@@ -252,7 +249,7 @@ fun MethodsAndScienceScreen(
         item {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Методы, Тренажеры и Наука",
+            text = "Практики и материалы",
                 style = MaterialTheme.typography.headlineMedium
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -262,9 +259,7 @@ fun MethodsAndScienceScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("methods_search_input"),
-                placeholder = {
-                    Text("Поиск упражнения (Шичко, HALT, НЛП, Магний, Сон)...")
-                },
+                placeholder = { Text("Найти статью, практику или добавку…") },
                 leadingIcon = {
                     Icon(imageVector = Icons.Default.Search, contentDescription = "Поиск")
                 },
@@ -341,7 +336,7 @@ fun MethodsAndScienceScreen(
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Выберите тренажер для мгновенного снятия тяги, паники, мышечного зажима или разбора алкогольных мифов:",
+                                            text = "Выберите короткую практику для самоподдержки. Эффект индивидуален; упражнения не заменяют медицинскую помощь:",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -378,13 +373,13 @@ fun MethodsAndScienceScreen(
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "Тренажер заземления «5-4-3-2-1» при панике и тяге",
+                                            text = "Необязательная практика заземления «5-4-3-2-1»",
                                             style = MaterialTheme.typography.titleMedium,
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                     Text(
-                                        text = "Переключает внимание мозга из лимбического шторма в реальность за 2 минуты. Отмечайте шаги по мере выполнения:",
+                                        text = "Это упражнение помогает направить внимание на окружающую обстановку. Можно пропустить любой неприятный шаг; при опасных симптомах нужна медицинская помощь.",
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                     MethodsAndScienceCatalog.groundingSteps54321.forEach { step ->
@@ -479,7 +474,7 @@ fun MethodsAndScienceScreen(
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "Разбор ложных убеждений по Г. А. Шичко и КПТ (${activeMythIndex + 1}/${myths.size})",
+                                                text = "Разбор убеждений и вариантов помощи (${activeMythIndex + 1}/${myths.size})",
                                             style = MaterialTheme.typography.titleMedium,
                                             color = MaterialTheme.colorScheme.secondary
                                         )
@@ -529,7 +524,7 @@ fun MethodsAndScienceScreen(
                                             ) {
                                                 Column(modifier = Modifier.padding(14.dp)) {
                                                     Text(
-                                                        text = "🔬 Научное и клиническое опровержение:",
+                                                        text = "Полезное уточнение:",
                                                         style = MaterialTheme.typography.labelLarge,
                                                         color = MaterialTheme.colorScheme.onPrimaryContainer
                                                     )
@@ -548,7 +543,7 @@ fun MethodsAndScienceScreen(
                                             ) {
                                                 Column(modifier = Modifier.padding(14.dp)) {
                                                     Text(
-                                                        text = "✍️ Формула сознательной трезвости перед сном (по Г. А. Шичко):",
+                                                        text = "Вопрос для вечерней записи:",
                                                         style = MaterialTheme.typography.labelLarge,
                                                         color = MaterialTheme.colorScheme.onSecondaryContainer
                                                     )
@@ -716,13 +711,13 @@ fun MethodsAndScienceScreen(
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "Дыхательная медитация 4-7-8",
+                                            text = "Комфортное дыхание",
                                             style = MaterialTheme.typography.titleMedium
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
-                                        text = "Снижает частоту пульса и гасит выброс адреналина при острой тяге за 90 секунд",
+                                        text = "Если вам удобно, сделайте несколько спокойных вдохов и чуть более длинных выдохов. Не задерживайте дыхание; остановитесь при головокружении или дискомфорте.",
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                     Spacer(modifier = Modifier.height(16.dp))
@@ -735,7 +730,7 @@ fun MethodsAndScienceScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = if (isBreathingActive) "${phaseSecondsLeft}с" else "4-7-8",
+                                            text = if (isBreathingActive) "${phaseSecondsLeft}с" else "Дышим",
                                             style = MaterialTheme.typography.headlineLarge,
                                             color = MaterialTheme.colorScheme.onPrimary
                                         )
@@ -767,7 +762,7 @@ fun MethodsAndScienceScreen(
                                         OutlinedButton(
                                             onClick = {
                                                 isBreathingActive = false
-                                                onRecordMeditationCompleted("Дыхательная медитация 4-7-8")
+                                                onRecordMeditationCompleted("Комфортная дыхательная практика")
                                             },
                                             modifier = Modifier
                                                 .weight(1f)
@@ -794,7 +789,7 @@ fun MethodsAndScienceScreen(
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "Интерактивный тренажер НЛП «ВЗМАХ»",
+                                            text = "Фразы отказа от алкоголя",
                                             style = MaterialTheme.typography.titleMedium,
                                             color = MaterialTheme.colorScheme.secondary
                                         )
@@ -802,9 +797,9 @@ fun MethodsAndScienceScreen(
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
                                         text = if (!swishActiveState) {
-                                            "Представьте навязчивый образ спиртного и нажмите кнопку ниже, чтобы мгновенно сжать и вышвырнуть его, заменив образом здорового и сильного себя (Сделано взмахов: $swishRepsCount из 7)."
+                                            "Выберите короткую фразу, которая звучит естественно для вас: «Спасибо, сегодня без алкоголя», «Я не хочу это обсуждать» или «Мне пора, я вызову такси». Тренировка фраз — это репетиция, а не обязанность вступать в спор. (Повторено: $swishRepsCount из 3)."
                                         } else {
-                                            "ВЗМАХ ВЫПОЛНЕН ($swishRepsCount/7)! Образ алкоголя сжат в черную точку и стерт. На всем экране — вы с ясным взглядом, ровным пульсом и гордостью за себя!"
+                                            "Хорошо. Вы можете повторить фразу, сменить тему или покинуть ситуацию. Вы не обязаны объяснять личные причины отказа."
                                         },
                                         style = MaterialTheme.typography.bodyLarge
                                     )
@@ -812,11 +807,11 @@ fun MethodsAndScienceScreen(
                                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                         Button(
                                             onClick = {
-                                                val next = (swishRepsCount + 1).coerceAtMost(7)
+                                                val next = (swishRepsCount + 1).coerceAtMost(3)
                                                 swishRepsCount = next
                                                 swishActiveState = true
-                                                if (next == 7) {
-                                                    onRecordMeditationCompleted("Сессия НЛП «Взмах»")
+                                                if (next == 3) {
+                                                    onRecordMeditationCompleted("Репетиция фразы отказа")
                                                 }
                                             },
                                             modifier = Modifier
@@ -824,7 +819,7 @@ fun MethodsAndScienceScreen(
                                                 .heightIn(min = 52.dp)
                                                 .testTag("nlp_swish_action_button")
                                         ) {
-                                            Text("СДЕЛАТЬ «ВЗМАХ!» ($swishRepsCount/7)")
+                                            Text("Повторить фразу ($swishRepsCount/3)")
                                         }
                                         if (swishRepsCount > 0) {
                                             OutlinedButton(
@@ -971,6 +966,7 @@ private fun EducationalMaterialCard(
     var expanded by remember(item.id) { mutableStateOf(initiallyExpanded) }
     var activeChapterIndex by remember { mutableIntStateOf(0) }
     var isVideoPlaying by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(isVideoPlaying) {
         while (isVideoPlaying && item.videoChapters.isNotEmpty()) {
@@ -1168,7 +1164,7 @@ private fun EducationalMaterialCard(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Ключевые научные факты:",
+                        text = "Коротко:",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -1178,6 +1174,19 @@ private fun EducationalMaterialCard(
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(top = 4.dp)
                         )
+                    }
+
+                    if (item.sources.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Источники и дополнительное чтение:", style = MaterialTheme.typography.labelLarge)
+                        item.sources.forEach { source ->
+                            TextButton(
+                                onClick = { runCatching { uriHandler.openUri(source.url) } },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(source.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -1317,7 +1326,7 @@ private fun TherapyTechniqueCard(
                     HorizontalDivider(color = contentColor.copy(alpha = 0.25f))
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Научное обоснование: ${tech.scientificBasis}",
+                        text = "Ограничение метода: ${tech.scientificBasis}",
                         style = MaterialTheme.typography.labelMedium,
                         color = contentColor.copy(alpha = 0.88f)
                     )
@@ -1365,6 +1374,7 @@ private fun SupplementCard(
     onToggle: () -> Unit
 ) {
     var expanded by remember(item.id) { mutableStateOf(initiallyExpanded) }
+    val uriHandler = LocalUriHandler.current
 
     Card(
         modifier = Modifier
@@ -1389,7 +1399,7 @@ private fun SupplementCard(
                 ) {
                     Icon(
                         imageVector = if (isChecked) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
-                        contentDescription = "Отметить прием",
+                        contentDescription = "Включить в список для врача",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp)
                     )
@@ -1415,18 +1425,18 @@ private fun SupplementCard(
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(top = 8.dp)) {
                     Text(
-                        text = "Форма и дозировка: ${item.dosageAndForm}",
+                        text = "Применение: ${item.dosageAndForm}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = item.mechanismOfAction,
+                        text = "Что известно: ${item.mechanismOfAction}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Режим приема: ${item.timingAdvice}",
+                        text = "Когда обсудить: ${item.timingAdvice}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.secondary
                     )
@@ -1441,6 +1451,23 @@ private fun SupplementCard(
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.padding(10.dp)
                         )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Доказательства: ${item.evidenceStrength}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    if (item.sources.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        item.sources.forEach { source ->
+                            TextButton(
+                                onClick = { runCatching { uriHandler.openUri(source.url) } },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(source.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
                     }
                 }
             }

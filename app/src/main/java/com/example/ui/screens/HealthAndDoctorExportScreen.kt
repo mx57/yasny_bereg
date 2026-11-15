@@ -81,10 +81,11 @@ fun HealthAndDoctorExportScreen(
     val context = LocalContext.current
 
     // Manual Vitals Input State
-    var bpmInput by remember { mutableStateOf("74") }
-    var sysInput by remember { mutableStateOf("125") }
-    var diaInput by remember { mutableStateOf("80") }
+    var bpmInput by remember { mutableStateOf("") }
+    var sysInput by remember { mutableStateOf("") }
+    var diaInput by remember { mutableStateOf("") }
     var noteInput by remember { mutableStateOf("") }
+    var showVitalsInputError by remember { mutableStateOf(false) }
 
     // Interactive Tap-to-Measure Pulse Counter State (for users without a BLE belt nearby)
     val tapTimestamps = remember { mutableStateListOf<Long>() }
@@ -115,7 +116,7 @@ fun HealthAndDoctorExportScreen(
         item {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Носимые устройства, Стресс и Отчет для Врача",
+                text = "Показатели здоровья и заметки",
                 style = MaterialTheme.typography.headlineMedium
             )
         }
@@ -139,7 +140,7 @@ fun HealthAndDoctorExportScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Интеграция с носимыми устройствами (Bluetooth LE)",
+                        text = "Пульс с Bluetooth-датчика",
                             style = MaterialTheme.typography.titleLarge
                         )
                     }
@@ -164,7 +165,7 @@ fun HealthAndDoctorExportScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "Индекс стресса: ${wearableState.currentStressIndex}% • ВСР (RMSSD): ${wearableState.currentHrvRmssdMs} мс",
+                                    text = "Измерение пульса не оценивает стресс и само по себе не является диагнозом.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
@@ -173,7 +174,7 @@ fun HealthAndDoctorExportScreen(
                                     onClick = onSaveBleReading,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text("Сохранить замер с браслета в медицинский дневник")
+                                    Text("Почему пульс не записан как давление?")
                                 }
                             }
                         }
@@ -253,13 +254,13 @@ fun HealthAndDoctorExportScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Контроль пульса, давления и уровня стресса",
+                        text = "Ручные заметки о пульсе и давлении",
                             style = MaterialTheme.typography.titleLarge
                         )
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "При пульсе ≥ 100 уд/мин или давлении ≥ 155 мм рт. ст. система автоматически включит критическое оповещение защиты от срыва.",
+                        text = "Запись не является диагнозом и не запускает автоматические медицинские тревоги. При выраженном ухудшении обратитесь за медицинской помощью.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -273,7 +274,7 @@ fun HealthAndDoctorExportScreen(
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
-                                text = "Быстрый замер пульса по касанию (без браслета):",
+                                text = "Приблизительный ручной подсчёт пульса:",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
@@ -329,7 +330,7 @@ fun HealthAndDoctorExportScreen(
                         OutlinedTextField(
                             value = bpmInput,
                             onValueChange = { bpmInput = it.filter { ch -> ch.isDigit() } },
-                            label = { Text("Пульс (ЧСС)") },
+                            label = { Text("Пульс (уд/мин)") },
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("vitals_bpm_input"),
@@ -338,7 +339,7 @@ fun HealthAndDoctorExportScreen(
                         OutlinedTextField(
                             value = sysInput,
                             onValueChange = { sysInput = it.filter { ch -> ch.isDigit() } },
-                            label = { Text("Верхнее АД") },
+                            label = { Text("Верхнее АД (мм рт. ст.)") },
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("vitals_sys_input"),
@@ -347,7 +348,7 @@ fun HealthAndDoctorExportScreen(
                         OutlinedTextField(
                             value = diaInput,
                             onValueChange = { diaInput = it.filter { ch -> ch.isDigit() } },
-                            label = { Text("Нижнее АД") },
+                            label = { Text("Нижнее АД (мм рт. ст.)") },
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("vitals_dia_input"),
@@ -364,17 +365,33 @@ fun HealthAndDoctorExportScreen(
                         singleLine = true
                     )
 
+                    if (showVitalsInputError) {
+                        Text(
+                            "Введите все три фактически измеренных значения; примерные значения приложение не подставляет.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = {
-                            onAddManualVitals(
-                                bpmInput.toIntOrNull() ?: 74,
-                                sysInput.toIntOrNull() ?: 125,
-                                diaInput.toIntOrNull() ?: 80,
-                                if (measuredTapBpm != null) "Пульсометр касаний / Тонометр" else "Тонометр / Ручной ввод",
-                                noteInput.ifBlank { "Плановый контроль состояния" }
-                            )
-                            noteInput = ""
+                            val bpm = bpmInput.toIntOrNull()
+                            val sys = sysInput.toIntOrNull()
+                            val dia = diaInput.toIntOrNull()
+                            if (bpm != null && sys != null && dia != null) {
+                                onAddManualVitals(
+                                    bpm,
+                                    sys,
+                                    dia,
+                                    if (measuredTapBpm != null) "Ручной подсчёт пульса / тонометр" else "Ручной ввод / тонометр",
+                                    noteInput
+                                )
+                                noteInput = ""
+                                showVitalsInputError = false
+                            } else {
+                                showVitalsInputError = true
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -382,7 +399,7 @@ fun HealthAndDoctorExportScreen(
                             .testTag("save_vitals_button")
                     ) {
                         Text(
-                            text = "Рассчитать стресс и сохранить замер",
+                            text = "Сохранить введённые значения",
                             style = MaterialTheme.typography.titleMedium
                         )
                     }
@@ -416,7 +433,7 @@ fun HealthAndDoctorExportScreen(
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Формирует полную клиническую выписку (стаж трезвости, динамика ЧСС, АД, индекс стресса, принимаемые биодобавки и расшифрованный дневник самочувствия) для вашего нарколога, терапевта или кардиолога.",
+                        text = "Формирует личную сводку введённых вами записей для обсуждения со специалистом. Это не клиническое заключение и не автоматическая интерпретация анализов.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onTertiaryContainer
                     )
@@ -441,7 +458,7 @@ fun HealthAndDoctorExportScreen(
                     ) {
                         Icon(imageVector = Icons.Default.Print, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Печать / Сохранить PDF-отчет для врача")
+                        Text("Открыть печать или сохранить PDF-сводку")
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
