@@ -17,6 +17,7 @@ import com.example.MainActivity
 import com.example.R
 import com.example.data.ExpandedRecoveryContent
 import java.util.Calendar
+import java.util.concurrent.atomic.AtomicInteger
 
 object NotificationHelper {
     const val CHANNEL_DAILY_MOTIVATION = "yasny_bereg_daily_motivation"
@@ -34,6 +35,9 @@ object NotificationHelper {
     private const val KEY_ENABLED = "notif_enabled"
     private const val LEGACY_REQUEST_CODE = 777
     private const val FIRST_REQUEST_CODE = 8200
+
+    /** Monotonic ids for on-demand notifications so consecutive posts never overwrite each other. */
+    private val nextAdhocNotificationId = AtomicInteger(90_100)
 
     fun ensureChannelsCreated(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -92,7 +96,9 @@ object NotificationHelper {
             .setContentIntent(pendingIntent)
             .build()
         return try {
-            val id = notificationId ?: if (isCritical) 9001 else (System.currentTimeMillis() % 10000).toInt()
+            val id = notificationId
+                ?: if (isCritical) 9001
+                else 90_100 + (nextAdhocNotificationId.getAndIncrement() % 90_000)
             NotificationManagerCompat.from(context).notify(id, notification)
             true
         } catch (_: SecurityException) {

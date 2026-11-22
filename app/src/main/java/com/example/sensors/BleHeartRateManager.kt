@@ -13,7 +13,10 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.ParcelUuid
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,19 +68,31 @@ class BleHeartRateManager(private val context: Context) {
             val diffsSquared = rrIntervals.zipWithNext { a, b -> (b - a).toDouble() * (b - a).toDouble() }
             return sqrt(diffsSquared.average()).roundToInt().coerceAtLeast(0)
         }
+
+        /** BLUETOOTH_SCAN/CONNECT are dangerous permissions on Android 12+; older versions grant them at install. */
+        fun hasRuntimePermissions(context: Context): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+            return ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_SCAN) ==
+                PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(context, android.Manifest.permission.BLUETOOTH_CONNECT) ==
+                    PackageManager.PERMISSION_GRANTED
+        }
     }
 
     private val scanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
-            val device = result.device ?: return
-            val name = device.name ?: "BLE Браслет (${device.address.takeLast(5)})"
-            val currentList = _state.value.discoveredDevices
-            if (currentList.none { it.address == device.address }) {
-                _state.value = _state.value.copy(
-                    discoveredDevices = currentList + DiscoveredBleDevice(name, device.address),
-                    statusMessage = "Найдено устройств: ${currentList.size + 1}. Нажмите для подключения."
-                )
+            // device.name and device.address can throw SecurityException if permissions were revoked mid-scan.
+            runCatching {
+                val device = result.device ?: return
+                val name = device.name ?: "BLE Браслет (${device.address.takeLast(5)})"
+                val currentList = _state.value.discoveredDevices
+                if (currentList.none { it.address == device.address }) {
+                    _state.value = _state.value.copy(
+                        discoveredDevices = currentList + DiscoveredBleDevice(name, device.address),
+                        statusMessage = "Найдено устройств: ${currentList.size + 1}. Нажмите для подключения."
+                    )
+                }
             }
         }
 
@@ -91,6 +106,13 @@ class BleHeartRateManager(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun startScan() {
+        if (!hasRuntimePermissions(context)) {
+            _state.value = _state.value.copy(
+                isScanning = false,
+                statusMessage = "Нет разрешения на Bluetooth. Нажмите кнопку поиска ещё раз и разрешите доступ в диалоге Android."
+            )
+            return
+        }
         val adapter = bluetoothAdapter
         if (adapter == null || !adapter.isEnabled) {
             _state.value = _state.value.copy(
@@ -149,19 +171,37 @@ class BleHeartRateManager(private val context: Context) {
     @SuppressLint("MissingPermission")
     fun connectToDevice(address: String) {
         stopScan()
-        val device = bluetoothAdapter?.getRemoteDevice(address) ?: return
-        _state.value = _state.value.copy(
-            statusMessage = "Подключение к ${device.name ?: address}..."
-        )
-        activeGatt?.close()
-        activeGatt = device.connectGatt(context, false, object : BluetoothGattCallback() {
-            override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+        if (!hasRuntimePermissions(context)) {
+            _state.value = _state.value.copy(
+                statusMessage = "Нет разрешения на подключение Bluetooth. Разрешите доступ и попробуйте снова."
+            )
+            return
+        }
+        runCatching {
+            val device = bluetoothAdapter?.getRemoteDevice(address) ?: return
+            _state.value = _state.value.copy(
+                statusMessage = "Подключение к ${device.name ?: address}..."
+            )
+            activeGatt?.close()
+            activeGatt = device.connectGatt(context, false, gattCallback)
+        }.onFailure { e ->
+            _state.value = _state.value.copy(
+                isConnected = false,
+                connectedDeviceName = null,
+                statusMessage = "Не удалось подключиться: ${e.localizedMessage ?: "проверьте разрешения и Bluetooth"}"
+            )
+        }
+    }
+
+    private val gattCallback = object : BluetoothGattCallback() {
+        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            runCatching {
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
                     recentRrIntervalsMs.clear()
                     _state.value = _state.value.copy(
                         isConnected = true,
-                        connectedDeviceName = gatt.device.name ?: address,
-                        statusMessage = "Подключено: ${gatt.device.name ?: address}. Чтение телеметрии..."
+                        connectedDeviceName = gatt.device.name ?: gatt.device.address,
+                        statusMessage = "Подключено: ${gatt.device.name ?: gatt.device.address}. Чтение телеметрии..."
                     )
                     gatt.discoverServices()
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
@@ -172,8 +212,10 @@ class BleHeartRateManager(private val context: Context) {
                     )
                 }
             }
+        }
 
-            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            runCatching {
                 val service = gatt.getService(HEART_RATE_SERVICE_UUID)
                 val characteristic = service?.getCharacteristic(HEART_RATE_MEASUREMENT_CHAR_UUID)
                 if (characteristic != null) {
@@ -183,19 +225,23 @@ class BleHeartRateManager(private val context: Context) {
                         descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                         gatt.writeDescriptor(descriptor)
                     }
+                } else {
+                    _state.value = _state.value.copy(
+                        statusMessage = "Устройство подключено, но профиль пульса (0x180D) на нём не найден. Попробуйте другой датчик или ручной ввод."
+                    )
                 }
             }
+        }
 
-            @Deprecated("Deprecated in Java")
-            override fun onCharacteristicChanged(
-                gatt: BluetoothGatt,
-                characteristic: BluetoothGattCharacteristic
-            ) {
-                if (characteristic.uuid == HEART_RATE_MEASUREMENT_CHAR_UUID) {
-                    parseHeartRateMeasurement(characteristic.value)
-                }
+        @Deprecated("Deprecated in Java")
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic
+        ) {
+            if (characteristic.uuid == HEART_RATE_MEASUREMENT_CHAR_UUID) {
+                parseHeartRateMeasurement(characteristic.value)
             }
-        })
+        }
     }
 
     private fun parseHeartRateMeasurement(bytes: ByteArray?) {
