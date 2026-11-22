@@ -1,0 +1,116 @@
+name: Android APK build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build, test and publish APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Generate debug keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -storepass android -alias androiddebugkey -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Restore or generate release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
+            echo "Using release keystore from repository secrets."
+          else
+            keytool -genkeypair -v \
+              -keystore my-upload-key.jks \
+              -storepass "${STORE_PASSWORD:-yasnybereg}" \
+              -alias upload -keypass "${KEY_PASSWORD:-yasnybereg}" \
+              -keyalg RSA -keysize 4096 -validity 10000 \
+              -dname "CN=Yasny Bereg CI,O=Yasny Bereg,C=RU"
+            echo "No KEYSTORE_BASE64 secret found: built with a per-run signing key."
+            echo "Set KEYSTORE_BASE64/STORE_PASSWORD/KEY_PASSWORD secrets for stable release signing."
+          fi
+
+      - name: Build debug and release APKs
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug assembleRelease --stacktrace --no-daemon
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace --no-daemon
+
+      - name: Collect APKs
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/yasny-bereg-debug.apk
+          cp app/build/outputs/apk/release/app-release.apk dist/yasny-bereg-release.apk
+          cd dist && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: yasny-bereg-apk
+          path: dist/
+          if-no-files-found: error
+
+      - name: Publish rolling pre-release from main
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="ci-latest"
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release delete "$TAG" -R "$GITHUB_REPOSITORY" --yes --cleanup-tag
+          fi
+          gh release create "$TAG" dist/yasny-bereg-debug.apk dist/yasny-bereg-release.apk dist/SHA256SUMS.txt \
+            -R "$GITHUB_REPOSITORY" \
+            --prerelease \
+            --title "Свежая сборка из main" \
+            --notes "Автоматическая сборка из последнего коммита main ($GITHUB_SHA).
+
+          - yasny-bereg-debug.apk — отладочная сборка
+          - yasny-bereg-release.apk — release-сборка (подпись: секреты репозитория, если заданы)
+          - SHA256SUMS.txt — контрольные суммы
+
+          Приложение не является медицинским изделием и не заменяет помощь специалиста."
+
+      - name: Publish release for version tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/yasny-bereg-debug.apk dist/yasny-bereg-release.apk dist/SHA256SUMS.txt \
+            -R "$GITHUB_REPOSITORY" \
+            --title "Ясный Берег $GITHUB_REF_NAME" \
+            --notes "Сборка по тегу $GITHUB_REF_NAME ($GITHUB_SHA).
+
+          Приложение не является медицинским изделием и не заменяет помощь специалиста."
