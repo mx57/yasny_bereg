@@ -16,3 +16,7 @@
 local.properties
 .env
 debug.keystore
+
+# Release signing keys must never be committed; CI generates or restores from secrets
+my-upload-key.jks
+*.jks
