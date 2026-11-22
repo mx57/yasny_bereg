@@ -53,6 +53,8 @@ jobs:
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
+            echo "STORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
             echo "Using release keystore from repository secrets."
           else
             keytool -genkeypair -v \
@@ -61,6 +63,8 @@ jobs:
               -alias upload -keypass "${KEY_PASSWORD:-yasnybereg}" \
               -keyalg RSA -keysize 4096 -validity 10000 \
               -dname "CN=Yasny Bereg CI,O=Yasny Bereg,C=RU"
+            echo "STORE_PASSWORD=${STORE_PASSWORD:-yasnybereg}" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=${KEY_PASSWORD:-yasnybereg}" >> "$GITHUB_ENV"
             echo "No KEYSTORE_BASE64 secret found: built with a per-run signing key."
             echo "Set KEYSTORE_BASE64/STORE_PASSWORD/KEY_PASSWORD secrets for stable release signing."
           fi
