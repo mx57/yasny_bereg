@@ -111,6 +111,33 @@ object EducationAndAchievementsCatalog {
             categoryLabel = "Личный путь"
         ),
         AchievementMilestone(
+            id = "ach_90_days",
+            title = "Три месяца выбранного пути",
+            description = "Регулярно замечать опоры и возвращаться к плану без самокритики",
+            rewardTitle = "Знак «Устойчивость»",
+            currentValue = soberDays.coerceAtLeast(0),
+            targetValue = 90,
+            categoryLabel = "Личный путь"
+        ),
+        AchievementMilestone(
+            id = "ach_180_days",
+            title = "Полгода заботы о себе",
+            description = "Поддерживать привычки, которые работают именно для вас",
+            rewardTitle = "Знак «Полугодие»",
+            currentValue = soberDays.coerceAtLeast(0),
+            targetValue = 180,
+            categoryLabel = "Личный путь"
+        ),
+        AchievementMilestone(
+            id = "ach_365_days",
+            title = "Год собственного плана",
+            description = "Оглядеться, поблагодарить опоры и обновить цели на следующий год",
+            rewardTitle = "Знак «Ясный год»",
+            currentValue = soberDays.coerceAtLeast(0),
+            targetValue = 365,
+            categoryLabel = "Личный путь"
+        ),
+        AchievementMilestone(
             id = "ach_first_community_post",
             title = "Первый шаг к поддержке",
             description = "Попросить о помощи или поддержать человека, если это безопасно для вас",
