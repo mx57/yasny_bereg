@@ -89,7 +89,7 @@ fun HomeAndTrackerScreen(
     isAnalyzingRisk: Boolean,
     onSelectEmotion: (EmotionalState) -> Unit,
     onSelectToneMode: (TherapyToneMode) -> Unit,
-    onUpdateTrackerParams: (Int, Int) -> Unit,
+    onUpdateTrackerParams: (Int, Int, Int) -> Unit,
     onOpenEmergencyHelp: () -> Unit,
     onNavigateToTab: (AppTab) -> Unit,
     onSendInstantMotivationNotification: () -> Unit,
@@ -915,6 +915,7 @@ fun HomeAndTrackerScreen(
     if (showEditTrackerModal) {
         var daysInput by remember { mutableStateOf(profile.soberDays.toString()) }
         var spendInput by remember { mutableStateOf(profile.dailySpendRub.toString()) }
+        var ethanolInput by remember { mutableStateOf(profile.dailyPureEthanolMl.toString()) }
 
         AlertDialog(
             onDismissRequest = { showEditTrackerModal = false },
@@ -933,6 +934,13 @@ fun HomeAndTrackerScreen(
                         label = { Text("Средние траты на алкоголь в день в прошлом (₽)") },
                         singleLine = true
                     )
+                    OutlinedTextField(
+                        value = ethanolInput,
+                        onValueChange = { ethanolInput = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Примерный чистый спирт в день в прошлом (мл)") },
+                        supportingText = { Text("Рюмка водки ≈ 20 мл, бокал вина ≈ 18 мл, бутылка пива ≈ 20 мл. Можно оставить пустым.") },
+                        singleLine = true
+                    )
                 }
             },
             confirmButton = {
@@ -940,7 +948,8 @@ fun HomeAndTrackerScreen(
                     onClick = {
                         val d = daysInput.toIntOrNull() ?: profile.soberDays
                         val s = spendInput.toIntOrNull() ?: profile.dailySpendRub
-                        onUpdateTrackerParams(d, s)
+                        val e = ethanolInput.toIntOrNull() ?: profile.dailyPureEthanolMl
+                        onUpdateTrackerParams(d, s, e)
                         showEditTrackerModal = false
                     }
                 ) {

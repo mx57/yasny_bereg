@@ -22,15 +22,18 @@ import com.example.notifications.NotificationHelper
 import com.example.security.CryptoVault
 import com.example.sensors.BleHeartRateManager
 import com.example.sensors.WearableTelemetryState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Calendar
 
 enum class AppTab(val titleRu: String) {
     HOME("Главная"),
@@ -117,17 +120,27 @@ class SobrietyViewModel(
     private val _isAnalyzingRisk = MutableStateFlow(false)
     val isAnalyzingRisk: StateFlow<Boolean> = _isAnalyzingRisk.asStateFlow()
 
+    /** Re-emits the day of year so the daily motivation rotation refreshes around midnight. */
+    private val dayOfYearFlow = flow {
+        while (true) {
+            emit(Calendar.getInstance().get(Calendar.DAY_OF_YEAR))
+            delay(30 * 60_000L)
+        }
+    }
+
     val adaptedMotivation: StateFlow<AdaptedMotivationBundle> = combine(
         _profile,
-        diaryEntries
-    ) { prof, diary ->
+        diaryEntries,
+        dayOfYearFlow
+    ) { prof, diary, dayOfYear ->
         val latestCraving = diary.firstOrNull()?.cravingLevel ?: -1
         AdaptiveMotivationEngine.selectAdaptedBundle(
             soberDays = prof.soberDays,
             currentEmotion = prof.currentEmotion,
             cravingLevel = latestCraving,
             stressIndex = 0,
-            toneMode = prof.toneMode
+            toneMode = prof.toneMode,
+            dayOfYear = dayOfYear
         )
     }.stateIn(
         scope = viewModelScope,
@@ -152,7 +165,7 @@ class SobrietyViewModel(
         val defaultStart = System.currentTimeMillis()
         val startMillis = prefs.getLong("sobriety_start_millis", defaultStart)
         val spend = prefs.getInt("daily_spend_rub", 0)
-        val ethanol = 0
+        val ethanol = prefs.getInt("daily_ethanol_ml", 0).coerceAtLeast(0)
         val emotionName = prefs.getString("current_emotion", EmotionalState.CALM.name) ?: EmotionalState.CALM.name
         val toneName = prefs.getString("tone_mode", TherapyToneMode.ADAPTIVE.name) ?: TherapyToneMode.ADAPTIVE.name
         val largeFont = prefs.getBoolean("elderly_large_font", true)
@@ -253,11 +266,12 @@ class SobrietyViewModel(
         refreshRelapseAnalytics()
     }
 
-    fun updateSobrietyDaysCount(daysAgo: Int, dailySpendRub: Int) {
+    fun updateSobrietyDaysCount(daysAgo: Int, dailySpendRub: Int, dailyPureEthanolMl: Int = 0) {
         val newStart = System.currentTimeMillis() - daysAgo.coerceAtLeast(0).toLong() * 24L * 3600_000L
         val updated = _profile.value.copy(
             sobrietyStartMillis = newStart,
-            dailySpendRub = dailySpendRub.coerceAtLeast(0)
+            dailySpendRub = dailySpendRub.coerceAtLeast(0),
+            dailyPureEthanolMl = dailyPureEthanolMl.coerceAtLeast(0)
         )
         _profile.value = updated
         saveProfileToPrefs(updated)
@@ -401,9 +415,10 @@ class SobrietyViewModel(
         notePlain: String
     ) {
         viewModelScope.launch {
-            val cleanBpm = heartRateBpm.coerceIn(40, 220)
-            val cleanSys = systolicBp.coerceIn(70, 250)
-            val cleanDia = diastolicBp.coerceIn(40, 150)
+            val cleanBpm = if (heartRateBpm <= 0) 0 else heartRateBpm.coerceIn(40, 220)
+            // 0 means "not measured" and must stay 0 — the app never fabricates approximate values.
+            val cleanSys = if (systolicBp <= 0) 0 else systolicBp.coerceIn(70, 250)
+            val cleanDia = if (diastolicBp <= 0) 0 else diastolicBp.coerceIn(40, 150)
 
             val entity = PhysiologicalReadingEntity(
                 timestampMillis = System.currentTimeMillis(),
@@ -424,8 +439,27 @@ class SobrietyViewModel(
 
     fun saveCurrentBleReadingToVault() {
         val w = wearableState.value
-        if (w.currentHeartRateBpm > 0) {
-            _statusToast.value = "Пульс с датчика: ${w.currentHeartRateBpm} уд/мин. Сохранение замера отложено, чтобы не подставлять неподтверждённое давление."
+        val bpm = w.currentHeartRateBpm
+        if (bpm <= 0) {
+            _statusToast.value = "Сначала подключите Bluetooth-датчик и дождитесь измерения пульса"
+            return
+        }
+        viewModelScope.launch {
+            dao.insertPhysiologicalReading(
+                PhysiologicalReadingEntity(
+                    timestampMillis = System.currentTimeMillis(),
+                    heartRateBpm = bpm.coerceIn(40, 220),
+                    systolicBp = 0,
+                    diastolicBp = 0,
+                    stressIndex = 0,
+                    hrvRmssdMs = w.currentHrvRmssdMs.coerceAtLeast(0),
+                    sourceDevice = "${w.connectedDeviceName ?: "Bluetooth-датчик"} (пульс)",
+                    isCriticalAlert = false,
+                    encryptedNote = CryptoVault.encrypt("Замер с носимого датчика. Давление не измерялось; стресс-индекс не рассчитывается.")
+                )
+            )
+            _statusToast.value = "Пульс ${bpm} уд/мин сохранён в журнал здоровья (давление не измерялось)"
+            refreshRelapseAnalytics()
         }
     }
 

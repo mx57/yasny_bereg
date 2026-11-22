@@ -229,8 +229,8 @@ fun YasnyBeregAppRoot() {
                         isAnalyzingRisk = isAnalyzingRisk,
                         onSelectEmotion = { viewModel.updateEmotionalState(it) },
                         onSelectToneMode = { viewModel.updateTherapyToneMode(it) },
-                        onUpdateTrackerParams = { days, spend ->
-                            viewModel.updateSobrietyDaysCount(days, spend)
+                        onUpdateTrackerParams = { days, spend, ethanol ->
+                            viewModel.updateSobrietyDaysCount(days, spend, ethanol)
                         },
                         onOpenEmergencyHelp = { viewModel.setEmergencyDialogVisible(true) },
                         onNavigateToTab = { viewModel.selectTab(it) },

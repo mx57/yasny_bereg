@@ -174,7 +174,7 @@ fun HealthAndDoctorExportScreen(
                                     onClick = onSaveBleReading,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text("Почему пульс не записан как давление?")
+                                    Text("Сохранить пульс и HRV в журнал")
                                 }
                             }
                         }
