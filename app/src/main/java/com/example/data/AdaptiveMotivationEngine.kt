@@ -3,6 +3,7 @@ package com.example.data
 import com.example.data.local.EmotionalState
 import com.example.data.local.MotivationCategory
 import com.example.data.local.TherapyToneMode
+import java.util.Calendar
 
 
 data class MotivationalItem(
@@ -32,13 +33,44 @@ object AdaptiveMotivationEngine {
     /** All displayed cards are original copy or explicitly labeled composite examples. */
     val allItems: List<MotivationalItem> = ExpandedRecoveryContent.motivationalItems
 
+    /** How many of the best-matching cards participate in the daily rotation. */
+    private const val ROTATION_POOL_SIZE = 7
+
+    private fun currentDayOfYear(): Int = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+
+    /**
+     * Picks the [dayIndex]-th element of the pool so the content rotates once per day
+     * instead of freezing on a single top-scored card until the user's state changes.
+     */
+    private fun rotate(pool: List<MotivationalItem>, dayOfYear: Int, offset: Int): MotivationalItem {
+        if (pool.isEmpty()) {
+            return allItems.firstOrNull()
+                ?: MotivationalItem(
+                    id = "fallback_empty",
+                    category = MotivationCategory.DAILY_MESSAGE,
+                    title = "Поддержка рядом",
+                    authorOrHero = "Редакция «Ясный Берег»",
+                    authorRoleOrAge = "Авторское послание поддержки",
+                    content = "Выберите один безопасный следующий шаг и, если нужно, попросите о поддержке.",
+                    practicalTakeaway = "Напишите надёжному человеку или запишите вопрос для специалиста.",
+                    minSoberDays = 0,
+                    maxSoberDays = 3650,
+                    targetEmotions = emptySet()
+                )
+        }
+        return pool[Math.floorMod(dayOfYear + offset, pool.size)]
+    }
+
     fun selectAdaptedBundle(
         soberDays: Int,
         currentEmotion: EmotionalState,
         cravingLevel: Int,
         stressIndex: Int,
-        toneMode: TherapyToneMode
+        toneMode: TherapyToneMode,
+        dayOfYear: Int = -1
     ): AdaptedMotivationBundle {
+        val rotationDay = if (dayOfYear in 1..366) dayOfYear else currentDayOfYear()
+
         val effectiveEmotion = when {
             cravingLevel >= 7 || stressIndex >= 75 -> EmotionalState.CRISIS
             cravingLevel >= 5 || stressIndex >= 60 -> EmotionalState.ANXIOUS
@@ -62,12 +94,12 @@ object AdaptiveMotivationEngine {
             else -> "долгосрочная поддержка"
         }
         val cravingNote = if (cravingLevel in 0..10) "тяга $cravingLevel/10 по вашей записи" else "оценка тяги не внесена"
-        val reason = "Подборка для этапа «$stage» • состояние: «${effectiveEmotion.titleRu}» • $cravingNote"
+        val reason = "День $soberDays • этап «$stage» • состояние «${effectiveEmotion.titleRu}» • $cravingNote"
 
         return AdaptedMotivationBundle(
-            dailyMessage = daily.first(),
-            famousQuote = thoughts.first(),
-            realStory = examples.first(),
+            dailyMessage = rotate(daily.take(ROTATION_POOL_SIZE), rotationDay, 0),
+            famousQuote = rotate(thoughts.take(ROTATION_POOL_SIZE), rotationDay, 1),
+            realStory = rotate(examples.take(ROTATION_POOL_SIZE), rotationDay, 2),
             adaptationReason = reason,
             allMatchedItems = (daily + thoughts + examples).sortedByDescending(::score)
         )
